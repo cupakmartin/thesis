@@ -1,0 +1,235 @@
+ID;TERMIN_EN;TERMIN_CS;KATEGORIE;DEFINICE;NESPRAVNE;ZDROJ
+G0001;Abnormal instrument reading;Abnormální údaj přístroje;ISO 14224 — druh poruchy;Druh poruchy s kódem AIR podle ISO 14224.;;ISO 14224
+G0002;Adjust;Seřízení;ISO 14224 — údržbová činnost;Kategorie údržbové činnosti s kódem ADJ podle ISO 14224.;;ISO 14224
+G0003;air filter;filtr vzduchový;filtr;;;firemní glosář
+G0004;alignment;ustavení;údržba;Vzájemné vyrovnání hřídelů nebo strojních celků.;;firemní glosář
+G0005;asset;majetek;správa majetku;Zařízení nebo prostředek evidovaný v systému správy majetku.;;firemní glosář
+G0006;asset register;registr majetku;správa majetku;;;firemní glosář
+G0007;auxiliary relay;relé pomocné;elektro;;;firemní glosář
+G0008;availability;pohotovost;spolehlivost;;;firemní glosář
+G0009;axial fan;ventilátor axiální;ventilátor;;;firemní glosář
+G0010;backlash;vůle v ozubení;mechanika;;;firemní glosář
+G0011;ball bearing;ložisko kuličkové;ložisko;;;firemní glosář
+G0012;ball valve;ventil kulový;armatura;;;firemní glosář
+G0013;bearing;ložisko;ložisko;Strojní součást umožňující vzájemný pohyb dvou dílů. Nejde o význam „ložisko nerostné suroviny“.;naleziště;firemní glosář
+G0014;bearing housing;ložiskové těleso;ložisko;;;firemní glosář
+G0015;bore;vrtání;jednotka;;;firemní glosář
+G0016;bracket;konzola;strojní součást;Nosný prvek pro uchycení zařízení.;;firemní glosář
+G0017;brass;mosaz;materiál;;;firemní glosář
+G0018;Breakdown;Havárie;ISO 14224 — druh poruchy;Druh poruchy s kódem BRD podle ISO 14224.;;ISO 14224
+G0019;bronze;bronz;materiál;;;firemní glosář
+G0020;bushing;pouzdro;ložisko;Kluzné pouzdro, nikoli keř.;keř;firemní glosář
+G0021;butterfly valve;klapka uzavírací;armatura;;;firemní glosář
+G0022;calibration;kalibrace;údržba;;;firemní glosář
+G0023;carbon steel;uhlíková ocel;materiál;;;firemní glosář
+G0024;cast iron;litina;materiál;;;firemní glosář
+G0025;cavitation;kavitace;analýza poruch;;;firemní glosář
+G0026;centrifugal pump;čerpadlo odstředivé;čerpadlo;;;firemní glosář
+G0027;Check;Kontrola;ISO 14224 — údržbová činnost;Kategorie údržbové činnosti s kódem CHE podle ISO 14224.;;ISO 14224
+G0028;check valve;zpětný ventil;armatura;Armatura propouštějící médium pouze jedním směrem. Jde o název součásti, nikoli o pokyn ke kontrole ventilu.;zkontroluj ventil;firemní glosář
+G0029;chuck;sklíčidlo;nástroj;Upínací zařízení obráběcího stroje.;;firemní glosář
+G0030;circlip;pojistný kroužek;spojovací materiál;;;firemní glosář
+G0031;circuit breaker;jistič;elektro;;;firemní glosář
+G0032;clearance;vůle;mechanika;;;firemní glosář
+G0033;Combination;Kombinovaný zásah;ISO 14224 — údržbová činnost;Kategorie údržbové činnosti s kódem COM podle ISO 14224.;;ISO 14224
+G0034;Combustion engines;Spalovací motory;ISO 14224 — třída zařízení;Třída zařízení CE, kategorie rotační.;;ISO 14224
+G0035;commission;uvést do provozu;provoz;;;firemní glosář
+G0036;commissioning;uvedení do provozu;provoz;;;firemní glosář
+G0037;commodity group;komoditní skupina;sklad;Kategorie, do níž je položka katalogu zařazena.;;firemní glosář
+G0038;Compressors;Kompresory;ISO 14224 — třída zařízení;Třída zařízení CO, kategorie rotační.;;ISO 14224
+G0039;condition monitoring;sledování technického stavu;údržba;;;firemní glosář
+G0040;consumable;spotřební materiál;sklad;;;firemní glosář
+G0041;contactor;stykač;elektro;;;firemní glosář
+G0042;Control logic units;Řídicí jednotky;ISO 14224 — třída zařízení;Třída zařízení CL, kategorie řídicí.;;ISO 14224
+G0043;corrective maintenance;korektivní údržba;údržba;Údržba prováděná po zjištění poruchy.;;firemní glosář
+G0044;corrosion;koroze;analýza poruch;;;firemní glosář
+G0045;coupling;spojka;přenos výkonu;Prvek spojující dva hřídele.;;firemní glosář
+G0046;Cranes;Jeřáby;ISO 14224 — třída zařízení;Třída zařízení CR, kategorie mechanická.;;ISO 14224
+G0047;criticality;kritičnost;spolehlivost;;;firemní glosář
+G0048;decommissioning;vyřazení z provozu;provoz;;;firemní glosář
+G0049;degree of protection;stupeň krytí;jednotka;Udává se kódem IP.;;firemní glosář
+G0050;diaphragm pump;čerpadlo membránové;čerpadlo;;;firemní glosář
+G0051;die;raznice;nástroj;Tvářecí nástroj. V technickém kontextu nikdy nejde o sloveso „zemřít“.;;firemní glosář
+G0052;downtime;prostoj;provoz;Doba, po kterou je zařízení mimo provoz.;;firemní glosář
+G0053;elbow;koleno;potrubí;;;firemní glosář
+G0054;Electric generators;Elektrické generátory;ISO 14224 — třída zařízení;Třída zařízení EG, kategorie rotační.;;ISO 14224
+G0055;Electric motors;Elektromotory;ISO 14224 — třída zařízení;Třída zařízení EM, kategorie rotační.;;ISO 14224
+G0056;equipment class;třída zařízení;ISO 14224 — třída zařízení;Zařazení zařízení do taxonomie podle ISO 14224.;;ISO 14224
+G0057;Erratic output;Kolísavý výstup;ISO 14224 — druh poruchy;Druh poruchy s kódem ERO podle ISO 14224.;;ISO 14224
+G0058;External leakage — fuel;Vnější únik — palivo;ISO 14224 — druh poruchy;Druh poruchy s kódem ELF podle ISO 14224.;;ISO 14224
+G0059;External leakage — process medium;Vnější únik — procesní médium;ISO 14224 — druh poruchy;Druh poruchy s kódem ELP podle ISO 14224.;;ISO 14224
+G0060;External leakage — utility medium;Vnější únik — pomocné médium;ISO 14224 — druh poruchy;Druh poruchy s kódem ELU podle ISO 14224.;;ISO 14224
+G0061;Fail to start on demand;Nespuštění na vyžádání;ISO 14224 — druh poruchy;Druh poruchy s kódem FTS podle ISO 14224.;;ISO 14224
+G0062;Fail to stop on demand;Nezastavení na vyžádání;ISO 14224 — druh poruchy;Druh poruchy s kódem STP podle ISO 14224.;;ISO 14224
+G0063;failure mechanism;mechanismus poruchy;ISO 14224 — druh poruchy;"Fyzikální proces vedoucí k poruše; terminologie dle ISO 14224.";;ISO 14224
+G0064;failure mode;způsob poruchy;ISO 14224 — druh poruchy;"Způsob, jakým se porucha projevuje; terminologie dle ISO 14224.";;ISO 14224
+G0065;Fans;Ventilátory;ISO 14224 — třída zařízení;Třída zařízení FN, kategorie rotační.;;ISO 14224
+G0066;fatigue;únava materiálu;analýza poruch;;;firemní glosář
+G0067;Filters;Filtry;ISO 14224 — třída zařízení;Třída zařízení FI, kategorie mechanická.;;ISO 14224
+G0068;Fire and gas detectors;Detektory požáru a plynu;ISO 14224 — třída zařízení;Třída zařízení FG, kategorie bezpečnostní.;;ISO 14224
+G0069;flange;příruba;potrubí;;;firemní glosář
+G0070;flange gasket;těsnění přírubové;těsnění;;;firemní glosář
+G0071;flat washer;podložka plochá;spojovací materiál;;;firemní glosář
+G0072;Flexible coupling;Spojka pružná;komponenta;Komoditní skupina TRANSMISSION, třída ISO 14224: GB.;;katalog položek
+G0073;flow meter;průtokoměr;měření;;;firemní glosář
+G0074;flow rate;průtok;jednotka;;;firemní glosář
+G0075;fluoroelastomer;fluorkaučuk;materiál;Označován zkratkou FPM nebo FKM.;;firemní glosář
+G0076;frequency converter;frekvenční měnič;elektro;;;firemní glosář
+G0077;Frequency converters;Frekvenční měniče;ISO 14224 — třída zařízení;Třída zařízení FC, kategorie elektrická.;;ISO 14224
+G0078;fuse link;pojistka nožová;elektro;;;firemní glosář
+G0079;galvanized;žárově zinkovaný;materiál;;;firemní glosář
+G0080;Gas turbines;Plynové turbíny;ISO 14224 — třída zařízení;Třída zařízení GT, kategorie rotační.;;ISO 14224
+G0081;gasket;těsnění;těsnění;Plošné statické těsnění mezi dvěma přírubami.;;firemní glosář
+G0082;gate valve;šoupátko;armatura;;;firemní glosář
+G0083;gear pump;čerpadlo zubové;čerpadlo;;;firemní glosář
+G0084;gear wheel;ozubené kolo;přenos výkonu;;;firemní glosář
+G0085;gearbox;převodovka;přenos výkonu;;;firemní glosář
+G0086;Gearboxes;Převodovky;ISO 14224 — třída zařízení;Třída zařízení GB, kategorie mechanická.;;ISO 14224
+G0087;gland;ucpávka;těsnění;Těsnicí prvek okolo hřídele nebo vřetena.;;firemní glosář
+G0088;globe valve;ventil sedlový;armatura;;;firemní glosář
+G0089;graphite;grafit;materiál;;;firemní glosář
+G0090;grease;mazivo plastické;mazivo;;;firemní glosář
+G0091;grease nipple;mazací hlavice;mazivo;;;firemní glosář
+G0092;guard;kryt;bezpečnost;Ochranný kryt zabraňující přístupu k pohyblivým částem.;;firemní glosář
+G0093;head;výtlačná výška;jednotka;V kontextu čerpadel jde o výtlačnou výšku, nikoli o hlavu.;;firemní glosář
+G0094;Heat exchangers;Výměníky tepla;ISO 14224 — třída zařízení;Třída zařízení HE, kategorie mechanická.;;ISO 14224
+G0095;Heaters and boilers;Ohříváky a kotle;ISO 14224 — třída zařízení;Třída zařízení HB, kategorie mechanická.;;ISO 14224
+G0096;helical gearbox;převodovka čelní;přenos výkonu;;;firemní glosář
+G0097;hex bolt;šroub šestihranný;spojovací materiál;;;firemní glosář
+G0098;hex nut;matice šestihranná;spojovací materiál;;;firemní glosář
+G0099;High output;Zvýšený výstup;ISO 14224 — druh poruchy;Druh poruchy s kódem HIO podle ISO 14224.;;ISO 14224
+G0100;housing;těleso;strojní součást;Skříň nebo těleso, v němž je uložena strojní součást.;;firemní glosář
+G0101;hydraulic cylinder;hydraulický válec;hydraulika;;;firemní glosář
+G0102;hydraulic fitting;šroubení hydraulické;hydraulika;;;firemní glosář
+G0103;hydraulic hose;hadice hydraulická;hydraulika;;;firemní glosář
+G0104;imbalance;nevyváženost;analýza poruch;;;firemní glosář
+G0105;impeller;oběžné kolo;čerpadlo;Rotující část čerpadla nebo ventilátoru předávající energii médiu.;;firemní glosář
+G0106;induction motor;elektromotor asynchronní;elektro;;;firemní glosář
+G0107;Inspection;Inspekce;ISO 14224 — údržbová činnost;Kategorie údržbové činnosti s kódem INS podle ISO 14224.;;ISO 14224
+G0108;interlock;blokování;bezpečnost;Bezpečnostní prvek znemožňující nebezpečnou souhru stavů.;;firemní glosář
+G0109;Internal leakage;Vnitřní netěsnost;ISO 14224 — druh poruchy;Druh poruchy s kódem INL podle ISO 14224.;;ISO 14224
+G0110;inventory;zásoby;sklad;;;firemní glosář
+G0111;issue unit;výdejní jednotka;sklad;;;firemní glosář
+G0112;item master;kmenová data položek;sklad;Centrální evidence položek katalogu v systému Maximo.;;firemní glosář
+G0113;job plan;pracovní postup;údržba;;;firemní glosář
+G0114;lead time;dodací lhůta;sklad;;;firemní glosář
+G0115;led industrial luminaire;svítidlo LED průmyslové;elektro;;;firemní glosář
+G0116;level sensor;snímač hladiny;měření;;;firemní glosář
+G0117;limit switch;koncový spínač;elektro;;;firemní glosář
+G0118;liner;vložka;strojní součást;Vyměnitelná vnitřní vrstva chránící těleso před opotřebením.;;firemní glosář
+G0119;lock nut;pojistná matice;spojovací materiál;Matice zabraňující samovolnému povolení spoje.;;firemní glosář
+G0120;lockout tagout;zajištění a označení;bezpečnost;Postup zajištění zařízení proti neúmyslnému spuštění při údržbě.;;firemní glosář
+G0121;Low output;Snížený výstup;ISO 14224 — druh poruchy;Druh poruchy s kódem LOO podle ISO 14224.;;ISO 14224
+G0122;lubrication;mazání;údržba;;;firemní glosář
+G0123;maintenance;údržba;údržba;;;firemní glosář
+G0124;manufacturer;výrobce;nákup;;;firemní glosář
+G0125;mean time between failures;střední doba mezi poruchami;spolehlivost;;;firemní glosář
+G0126;mean time to repair;střední doba opravy;spolehlivost;;;firemní glosář
+G0127;mechanical seal;mechanická ucpávka;těsnění;;;firemní glosář
+G0128;Minor in-service problems;Drobné provozní závady;ISO 14224 — druh poruchy;Druh poruchy s kódem SER podle ISO 14224.;;ISO 14224
+G0129;misalignment;nesouosost;analýza poruch;;;firemní glosář
+G0130;mounting bolt;upevňovací šroub;spojovací materiál;Šroub sloužící k upevnění součásti k rámu nebo základu.;;firemní glosář
+G0131;nitrile rubber;nitrilový kaučuk;materiál;Označován zkratkou NBR.;;firemní glosář
+G0132;Noise;Hluk;ISO 14224 — druh poruchy;Druh poruchy s kódem NOI podle ISO 14224.;;ISO 14224
+G0133;nominal diameter;jmenovitá světlost;jednotka;Označuje se zkratkou DN.;;firemní glosář
+G0134;nominal pressure;jmenovitý tlak;jednotka;Označuje se zkratkou PN.;;firemní glosář
+G0135;nut;matice;spojovací materiál;Druh spojovacího materiálu se závitem, protikus šroubu.;ořech;firemní glosář
+G0136;o-ring;o-kroužek;těsnění;;;firemní glosář
+G0137;obsolete;vyřazený;sklad;;;firemní glosář
+G0138;oil filter;filtr olejový;filtr;;;firemní glosář
+G0139;order unit;objednací jednotka;sklad;;;firemní glosář
+G0140;Other;Jiné;ISO 14224 — druh poruchy;Druh poruchy s kódem OTH podle ISO 14224.;;ISO 14224
+G0141;outage;výpadek;provoz;;;firemní glosář
+G0142;overhaul;generální oprava;údržba;;;firemní glosář
+G0143;Overheating;Přehřívání;ISO 14224 — druh poruchy;Druh poruchy s kódem OHE podle ISO 14224.;;ISO 14224
+G0144;parallel key;pero těsné;přenos výkonu;;;firemní glosář
+G0145;Parameter deviation;Odchylka parametru;ISO 14224 — druh poruchy;Druh poruchy s kódem PDE podle ISO 14224.;;ISO 14224
+G0146;permit to work;pracovní povolení;bezpečnost;;;firemní glosář
+G0147;Piping;Potrubí;ISO 14224 — třída zařízení;Třída zařízení PI, kategorie mechanická.;;ISO 14224
+G0148;plain bushing;kluzné pouzdro;ložisko;;;firemní glosář
+G0149;plant;závod;provoz;Výrobní závod nebo provozní jednotka, nikoli rostlina.;rostlina;firemní glosář
+G0150;plate heat exchanger;výměník tepla deskový;potrubí;;;firemní glosář
+G0151;Plugged / choked;Ucpání;ISO 14224 — druh poruchy;Druh poruchy s kódem PLU podle ISO 14224.;;ISO 14224
+G0152;pneumatic cylinder;pneumatický válec;hydraulika;;;firemní glosář
+G0153;power cable;kabel silový;elektro;;;firemní glosář
+G0154;Power transformers;Výkonové transformátory;ISO 14224 — třída zařízení;Třída zařízení PT, kategorie elektrická.;;ISO 14224
+G0155;predictive maintenance;prediktivní údržba;údržba;Údržba plánovaná na základě sledování stavu zařízení.;;firemní glosář
+G0156;preload;předpětí;mechanika;;;firemní glosář
+G0157;pressure gauge;manometr;měření;;;firemní glosář
+G0158;pressure reducing valve;redukční ventil;armatura;;;firemní glosář
+G0159;pressure transmitter;snímač tlaku;měření;;;firemní glosář
+G0160;pressurized water reactor;tlakovodní reaktor;energetika;Typ jaderného reaktoru chlazeného tlakovou vodou.;tlakový vodní reaktor;firemní glosář
+G0161;preventive maintenance;preventivní údržba;údržba;Údržba prováděná v plánovaných intervalech.;;firemní glosář
+G0162;Process sensors;Procesní snímače;ISO 14224 — třída zařízení;Třída zařízení PS, kategorie řídicí.;;ISO 14224
+G0163;pulley;řemenice;přenos výkonu;;;firemní glosář
+G0164;Pump impeller;Oběžné kolo čerpadla;komponenta;Komoditní skupina PUMPS, třída ISO 14224: PU.;;katalog položek
+G0165;Pumps;Čerpadla;ISO 14224 — třída zařízení;Třída zařízení PU, kategorie rotační.;;ISO 14224
+G0166;purchase order;objednávka;nákup;;;firemní glosář
+G0167;rated power;jmenovitý výkon;jednotka;;;firemní glosář
+G0168;redundancy;zálohování;spolehlivost;;;firemní glosář
+G0169;reliability;spolehlivost;spolehlivost;;;firemní glosář
+G0170;relief valve;přepouštěcí ventil;armatura;;;firemní glosář
+G0171;reorder point;objednací hladina;sklad;;;firemní glosář
+G0172;Repair;Oprava;ISO 14224 — údržbová činnost;Kategorie údržbové činnosti s kódem RPR podle ISO 14224.;;ISO 14224
+G0173;Replace;Výměna;ISO 14224 — údržbová činnost;Kategorie údržbové činnosti s kódem RPL podle ISO 14224.;;ISO 14224
+G0174;retrofit;modernizace;údržba;;;firemní glosář
+G0175;roller bearing;ložisko válečkové;ložisko;;;firemní glosář
+G0176;roller chain;řetěz válečkový;přenos výkonu;;;firemní glosář
+G0177;root cause;kořenová příčina;analýza poruch;Základní příčina poruchy zjištěná analýzou.;;firemní glosář
+G0178;rotating item;rotační položka;sklad;Položka sledovaná individuálně podle výrobního čísla.;;firemní glosář
+G0179;safety valve;ventil pojistný;armatura;;;firemní glosář
+G0180;seal;těsnění;těsnění;Prvek zabraňující úniku média. V kontextu údržby nikdy nejde o zvíře.;tuleň;firemní glosář
+G0181;seal kit;těsnicí sada;těsnění;Sada těsnicích prvků pro opravu válce nebo čerpadla.;sada těsnění;firemní glosář
+G0182;seamless pipe;trubka bezešvá;potrubí;;;firemní glosář
+G0183;Service;Servis;ISO 14224 — údržbová činnost;Kategorie údržbové činnosti s kódem SER podle ISO 14224.;;ISO 14224
+G0184;set screw;stavěcí šroub;spojovací materiál;Šroub zajišťující vzájemnou polohu dvou dílů.;;firemní glosář
+G0185;shaft;hřídel;strojní součást;Rotující strojní součást přenášející krouticí moment.;šachta;firemní glosář
+G0186;shaft seal;hřídelový těsnicí kroužek;těsnění;;;firemní glosář
+G0187;shim;vymezovací podložka;strojní součást;Tenká podložka sloužící k vymezení vůle.;;firemní glosář
+G0188;shutdown;odstávka;provoz;;;firemní glosář
+G0189;solenoid valve;elektromagnetický ventil;armatura;;;firemní glosář
+G0190;spare;náhradní díl;sklad;;;firemní glosář
+G0191;spare part;náhradní díl;sklad;;;firemní glosář
+G0192;speed;otáčky;jednotka;U rotačních strojů se udává v otáčkách za minutu.;;firemní glosář
+G0193;spherical roller bearing;ložisko soudečkové;ložisko;;;firemní glosář
+G0194;spring;pružina;strojní součást;Pružný prvek akumulující mechanickou energii.;jaro;firemní glosář
+G0195;spring washer;podložka pružná;spojovací materiál;;;firemní glosář
+G0196;sprocket;řetězové kolo;přenos výkonu;;;firemní glosář
+G0197;Spurious stop;Neplánované zastavení;ISO 14224 — druh poruchy;Druh poruchy s kódem UST podle ISO 14224.;;ISO 14224
+G0198;stainless steel;nerezová ocel;materiál;;;firemní glosář
+G0199;Steam turbines;Parní turbíny;ISO 14224 — třída zařízení;Třída zařízení ST, kategorie rotační.;;ISO 14224
+G0200;stock level;stav zásob;sklad;;;firemní glosář
+G0201;storeroom;sklad;sklad;;;firemní glosář
+G0202;stroke;zdvih;jednotka;;;firemní glosář
+G0203;Structural deficiency;Konstrukční nedostatek;ISO 14224 — druh poruchy;Druh poruchy s kódem STD podle ISO 14224.;;ISO 14224
+G0204;Switchgear;Rozváděče;ISO 14224 — třída zařízení;Třída zařízení SG, kategorie elektrická.;;ISO 14224
+G0205;tap;závitník;nástroj;Nástroj pro řezání vnitřního závitu. Nikoli kohoutek.;kohoutek;firemní glosář
+G0206;temperature sensor;teplotní čidlo;měření;;;firemní glosář
+G0207;terminal block;svorkovnice;elektro;;;firemní glosář
+G0208;Test;Zkouška;ISO 14224 — údržbová činnost;Kategorie údržbové činnosti s kódem TES podle ISO 14224.;;ISO 14224
+G0209;thread;závit;jednotka;;;firemní glosář
+G0210;threaded rod;závitová tyč;spojovací materiál;;;firemní glosář
+G0211;thrust bearing;ložisko axiální;ložisko;;;firemní glosář
+G0212;timing belt;řemen ozubený;přenos výkonu;;;firemní glosář
+G0213;torque;krouticí moment;mechanika;;;firemní glosář
+G0214;torque wrench;momentový klíč;nástroj;Nástroj pro utažení spoje předepsaným krouticím momentem.;;firemní glosář
+G0215;Turboexpanders;Turboexpandéry;ISO 14224 — třída zařízení;Třída zařízení TE, kategorie rotační.;;ISO 14224
+G0216;turnaround;generální odstávka;provoz;;;firemní glosář
+G0217;Uninterruptible power supplies;Zdroje nepřerušovaného napájení;ISO 14224 — třída zařízení;Třída zařízení UP, kategorie elektrická.;;ISO 14224
+G0218;unit of measure;měrná jednotka;sklad;;;firemní glosář
+G0219;Unknown;Neznámé;ISO 14224 — druh poruchy;Druh poruchy s kódem UNK podle ISO 14224.;;ISO 14224
+G0220;v-belt;řemen klínový;přenos výkonu;;;firemní glosář
+G0221;valve actuator;pohon armatury;armatura;;;firemní glosář
+G0222;Valve actuators;Pohony armatur;ISO 14224 — třída zařízení;Třída zařízení VS, kategorie řídicí.;;ISO 14224
+G0223;Valves;Armatury;ISO 14224 — třída zařízení;Třída zařízení VA, kategorie mechanická.;;ISO 14224
+G0224;vendor;dodavatel;nákup;;;firemní glosář
+G0225;Vessels;Tlakové nádoby;ISO 14224 — třída zařízení;Třída zařízení VE, kategorie mechanická.;;ISO 14224
+G0226;Vibration;Vibrace;ISO 14224 — druh poruchy;Druh poruchy s kódem VIB podle ISO 14224.;;ISO 14224
+G0227;vibration damper;tlumič vibrací;přenos výkonu;;;firemní glosář
+G0228;washer;podložka;spojovací materiál;Plochý kroužek pod hlavu šroubu nebo matici. Nikoli pračka.;pračka;firemní glosář
+G0229;wear;opotřebení;analýza poruch;;;firemní glosář
+G0230;wear plate;otěruvzdorná deska;strojní součást;;;firemní glosář
+G0231;Winches;Navijáky;ISO 14224 — třída zařízení;Třída zařízení WI, kategorie mechanická.;;ISO 14224
+G0232;work order;pracovní příkaz;údržba;Záznam zadávající konkrétní údržbový úkon.;;firemní glosář
+G0233;worm gearbox;převodovka šneková;přenos výkonu;;;firemní glosář
+G0234;zinc plated;pozinkovaný;materiál;;;firemní glosář

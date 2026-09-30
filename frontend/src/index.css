@@ -1,0 +1,156 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --barva-podklad: 255 255 255;
+    --barva-plocha: 255 255 255;
+    --barva-plocha-2: 245 245 245;
+    --barva-plocha-3: 238 238 238;
+    --barva-obrys: 200 200 200;
+    --barva-obrys-2: 160 160 160;
+
+    --barva-text: 0 0 0;
+    --barva-text-tlumeny: 60 60 60;
+    --barva-text-slaby: 110 110 110;
+
+    --barva-akcent: 0 51 153;
+    --barva-akcent-tlumeny: 232 238 250;
+    --barva-akcent-text: 255 255 255;
+
+    --barva-vystraha: 140 90 0;
+    --barva-vystraha-tlumena: 252 244 226;
+
+    --barva-uspech: 0 102 51;
+    --barva-uspech-tlumeny: 232 244 238;
+
+    --barva-chyba: 170 0 0;
+    --barva-chyba-tlumena: 252 232 232;
+  }
+
+  * {
+    border-color: rgb(var(--barva-obrys));
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-podklad text-text font-sans;
+  }
+
+  table,
+  .cislice {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--barva-akcent));
+    outline-offset: 1px;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-plocha border border-obrys;
+  }
+
+  .panel-hlavicka {
+    @apply flex items-center justify-between gap-3 px-3 py-2 border-b border-obrys;
+  }
+
+  .nadpis-sekce {
+    @apply text-2xs font-bold uppercase text-textTlumeny;
+  }
+
+  .tlacitko {
+    @apply inline-flex items-center justify-center gap-1.5 border
+           px-2.5 py-1 text-sm
+           disabled:opacity-50 disabled:pointer-events-none;
+  }
+
+  .tlacitko-hlavni {
+    @apply tlacitko bg-akcent text-akcentText border-akcent;
+  }
+
+  .tlacitko-vedlejsi {
+    @apply tlacitko bg-plocha text-text border-obrys2;
+  }
+
+  .tlacitko-tichy {
+    @apply tlacitko bg-plocha text-text border-obrys;
+  }
+
+  .tlacitko-uspech {
+    @apply tlacitko bg-uspech text-white border-uspech;
+  }
+
+  .tlacitko-chyba {
+    @apply tlacitko bg-plocha text-chyba border-chyba;
+  }
+
+  .pole {
+    @apply w-full bg-plocha border border-obrys2 px-2 py-1 text-sm
+           text-text placeholder:text-textSlaby outline-none;
+  }
+
+  .pole-mono {
+    @apply pole font-mono;
+  }
+
+  .stitek-pole {
+    @apply block text-2xs font-bold uppercase text-textTlumeny mb-1;
+  }
+
+  .odznak {
+    @apply inline-flex items-center gap-1 px-1.5 py-0.5 text-2xs font-bold
+           uppercase border;
+  }
+
+  .odznak-neutralni { @apply odznak bg-plocha2 text-textTlumeny border-obrys; }
+  .odznak-akcent    { @apply odznak bg-akcentTlumeny text-akcent border-akcent; }
+  .odznak-vystraha  { @apply odznak bg-vystrahaTlumena text-vystraha border-vystraha; }
+  .odznak-uspech    { @apply odznak bg-uspechTlumeny text-uspech border-uspech; }
+  .odznak-chyba     { @apply odznak bg-chybaTlumena text-chyba border-chyba; }
+
+  .tabulka {
+    @apply w-full text-sm border-collapse;
+  }
+
+  .tabulka thead th {
+    @apply sticky top-0 z-10 bg-plocha2 text-left px-2 py-1.5 font-bold
+           text-2xs uppercase text-textTlumeny
+           border border-obrys whitespace-nowrap;
+  }
+
+  .tabulka tbody td {
+    @apply px-2 py-1.5 border border-obrys align-top;
+  }
+
+  .kod {
+    @apply font-mono text-[0.8125rem] text-textTlumeny;
+  }
+
+  .odkaz-navigace {
+    @apply inline-flex items-center border border-obrys px-2 py-1 text-sm
+           text-text bg-plocha;
+  }
+
+  .odkaz-navigace-aktivni {
+    @apply bg-akcent text-akcentText border-akcent font-bold;
+  }
+
+  .ukazatel {
+    @apply h-2 bg-plocha3 border border-obrys overflow-hidden;
+  }
+
+  .ukazatel-vypln {
+    @apply h-full;
+  }
+
+  .prubeh-neurcity {
+    background-color: rgb(var(--barva-akcent) / 0.4);
+  }
+}

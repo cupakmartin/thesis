@@ -1,0 +1,33 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+data/cache/*
+!data/cache/.gitkeep
+
+*.db
+*.sqlite3
+
+modely/
+.cache/
+
+# Node
+node_modules/
+frontend/.vite/
+
+!frontend/dist/
+
+# Výstupy běhů
+data/vystup/*
+!data/vystup/.gitkeep
+
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+
+dokumentace/
+docs/
