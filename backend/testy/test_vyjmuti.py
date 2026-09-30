@@ -152,6 +152,83 @@ class TestVyjmutiZeSkupiny:
             sluzba.vyjmi_clena(1, "100003", kdo="test")
 
 
+class TestPoradiVeFronte:
+    def test_skupina_po_vyjmuti_zustane_na_svem_miste(self, prostredi):
+        """Vyjmutí člena nesmí skupinu přesunout jinam ve frontě.
+
+        Skupina o třech členech se vyjmutím zmenší na dvojici. Kdyby se fronta
+        řadila přímo podle velikosti, propadla by za všechny ostatní dvojice —
+        u katalogu pěti tisíc položek o stovky stránek dál — a uživateli by
+        zmizela z očí právě ve chvíli, kdy ji rozpracoval.
+        """
+        from app.db import pripoj
+        from app.sluzby.deduplikace import sluzba_deduplikace
+        from app.sluzby.slucovani import sluzba_slucovani
+
+        # Dvojice s vyšší podobností, které by po zmenšení první skupiny
+        # stály při řazení podle velikosti před ní.
+        with pripoj() as spojeni:
+            for klastr_id, cleny in ((2, ("100004", "100005")),
+                                     (3, ("100006", "100007"))):
+                spojeni.execute(
+                    "INSERT INTO klastry (id, beh_id, poradi, velikost, "
+                    "prumerna_podobnost, minimalni_podobnost) "
+                    "VALUES (?, 1, ?, 2, 0.99, 0.99)",
+                    (klastr_id, klastr_id),
+                )
+                for itemnum in cleny:
+                    spojeni.execute(
+                        "INSERT INTO polozky (itemnum, description, "
+                        "stav_konsolidace) VALUES (?, ?, 'aktivni')",
+                        (itemnum, f"Ložisko kuličkové {itemnum}"),
+                    )
+                    spojeni.execute(
+                        "INSERT INTO klastr_cleny (klastr_id, itemnum) "
+                        "VALUES (?, ?)",
+                        (klastr_id, itemnum),
+                    )
+
+        sluzba = sluzba_deduplikace()
+        pred, _ = sluzba.klastry(beh_id=1)
+        assert [k["id"] for k in pred] == [1, 2, 3]
+
+        sluzba_slucovani().vyjmi_clena(1, "100003", kdo="test")
+
+        po, _ = sluzba.klastry(beh_id=1)
+        assert [k["id"] for k in po] == [1, 2, 3], (
+            "Skupina se po vyjmutí člena posunula ve frontě."
+        )
+        assert po[0]["velikost"] == 2
+
+    def test_strankovani_nevynecha_ani_nezopakuje_skupinu(self, prostredi):
+        """Skupiny se stejnou velikostí i podobností potřebují jednoznačné řazení.
+
+        Bez něj SQLite pořadí mezi dotazy nezaručuje a při stránkování se táž
+        skupina může objevit dvakrát, zatímco jiná se nezobrazí vůbec.
+        """
+        from app.db import pripoj
+        from app.sluzby.deduplikace import sluzba_deduplikace
+
+        with pripoj() as spojeni:
+            for klastr_id in range(2, 8):
+                spojeni.execute(
+                    "INSERT INTO klastry (id, beh_id, poradi, velikost, "
+                    "prumerna_podobnost, minimalni_podobnost) "
+                    "VALUES (?, 1, ?, 2, 0.9, 0.9)",
+                    (klastr_id, klastr_id),
+                )
+
+        sluzba = sluzba_deduplikace()
+        prvni, celkem = sluzba.klastry(beh_id=1, limit=3, odsazeni=0)
+        druha, _ = sluzba.klastry(beh_id=1, limit=3, odsazeni=3)
+        treti, _ = sluzba.klastry(beh_id=1, limit=3, odsazeni=6)
+
+        videne = [k["id"] for k in (*prvni, *druha, *treti)]
+        assert celkem == 7
+        assert videne == sorted(videne)
+        assert len(set(videne)) == len(videne)
+
+
 class TestSpravaBehu:
     def test_smazani_vsech_behu(self, prostredi):
         from app.db import pripoj

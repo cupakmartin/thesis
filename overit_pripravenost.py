@@ -200,8 +200,9 @@ def zkontroluj_funkcnost() -> None:
 
 
 def main() -> None:
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    prepnuti = getattr(sys.stdout, "reconfigure", None)
+    if callable(prepnuti):
+        prepnuti(encoding="utf-8", errors="replace")
 
 
     print("=" * 72)

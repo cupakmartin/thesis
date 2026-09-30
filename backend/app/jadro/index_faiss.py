@@ -102,12 +102,16 @@ class VektorovyIndex:
         if not cesta.exists():
             return False
         try:
-            self._index = faiss.read_index(str(cesta))
-            self._pocet = int(self._index.ntotal)
-            self._index.hnsw.efSearch = self._nastaveni.hnsw_ef_search
+            nacteny = faiss.read_index(str(cesta))
+            graf = getattr(nacteny, "hnsw", None)
+            if graf is None:
+                raise RuntimeError("Uložený index není typu HNSW.")
+            graf.efSearch = self._nastaveni.hnsw_ef_search
+            self._index = nacteny
+            self._pocet = int(nacteny.ntotal)
             logger.info("Index načten z %s (%d vektorů)", cesta, self._pocet)
             return True
-        except Exception as chyba:  # pragma: no cover - poškozený soubor
+        except Exception as chyba:
             logger.warning("Index se nepodařilo načíst (%s), bude přestavěn.", chyba)
             self._index = None
             return False

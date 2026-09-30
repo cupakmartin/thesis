@@ -394,14 +394,15 @@ def zkontroluj_novou_polozku(
 
     druhy: list[str | None] | None = None
     if konfigurace.uplatnit_druh_komponenty:
-        druhy = [None] * len(rozsirene)
+        urcene: list[str | None] = [None] * len(rozsirene)
         typ_noveho = urci_typ(nova.popis)
-        druhy[novy_index] = typ_noveho.identifikator if typ_noveho else None
+        urcene[novy_index] = typ_noveho.identifikator if typ_noveho else None
         for poradi in range(sousede.shape[1]):
             kandidat = int(sousede[0, poradi])
             if 0 <= kandidat < len(zaznamy):
                 typ_kandidata = urci_typ(zaznamy[kandidat].popis)
-                druhy[kandidat] = typ_kandidata.identifikator if typ_kandidata else None
+                urcene[kandidat] = typ_kandidata.identifikator if typ_kandidata else None
+        druhy = urcene
 
     vysledky: list[Dvojice] = []
     for poradi in range(sousede.shape[1]):

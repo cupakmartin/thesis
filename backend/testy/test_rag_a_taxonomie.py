@@ -163,7 +163,9 @@ class TestZarazeniPravidlove:
         assert zarazeni.kod == ocekavany_kod
 
     def test_anglicky_popis(self):
-        assert zarad_pravidlove("Ball valve DN50").kod == "VA"
+        zarazeni = zarad_pravidlove("Ball valve DN50")
+        assert zarazeni is not None
+        assert zarazeni.kod == "VA"
 
     def test_zalozni_zarazeni_podle_komodity(self):
         zarazeni = zarad_pravidlove("Neznámá součást", "ELECTRICAL")

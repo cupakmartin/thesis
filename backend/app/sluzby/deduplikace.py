@@ -199,7 +199,7 @@ class SluzbaDeduplikace:
             ).fetchone()[0])
             radky = spojeni.execute(
                 f"SELECT * FROM klastry{klauzule} "
-                f"ORDER BY velikost DESC, prumerna_podobnost DESC LIMIT ? OFFSET ?",
+                f"ORDER BY poradi, id LIMIT ? OFFSET ?",
                 [*parametry, limit, odsazeni],
             ).fetchall()
 

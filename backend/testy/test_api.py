@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import csv
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -9,7 +10,7 @@ from fastapi.testclient import TestClient
 
 
 @pytest.fixture(scope="module")
-def klient(tmp_path_factory) -> TestClient:
+def klient(tmp_path_factory) -> Iterator[TestClient]:
     docasny = tmp_path_factory.mktemp("mro")
 
     import os

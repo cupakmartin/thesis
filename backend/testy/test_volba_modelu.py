@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -44,7 +46,7 @@ def _vychozi_stav():
 
 
 @pytest.fixture
-def klient(prostredi) -> TestClient:
+def klient(prostredi) -> Iterator[TestClient]:
     from app.main import vytvor_aplikaci
 
     with TestClient(vytvor_aplikaci()) as testovaci_klient:
