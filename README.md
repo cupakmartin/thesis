@@ -31,7 +31,7 @@ Node.js je potřeba pouze při úpravách uživatelského rozhraní. Sestavené 
 ```powershell
 python -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements.txt
-ollama pull mistral:7b
+ollama pull gemma2:9b
 ```
 
 ### 2. Příprava dat
@@ -67,13 +67,13 @@ Jazykový model běží přes Ollamu, embedding model je uložen v adresáři pr
 
 Aplikace nevyžaduje placené API ani předplatné. Nároky na vlastní hardware a dobu zpracování ale zůstávají.
 
-Výchozí jazykový model je `mistral:7b`. Jiný model lze stáhnout například takto:
+Výchozí jazykový model je `gemma2:9b` — ze čtyř srovnaných modelů nejspolehlivěji překládá samostatná slova (39 z 51 běžných slov proti 25 u `mistral:7b`). Jiný model lze stáhnout například takto:
 
 ```powershell
 ollama pull qwen2.5:7b
 ```
 
-Model se vybírá v horní liště aplikace, která nabízí modely dostupné v místní instalaci Ollama. Volba se ukládá do databáze, zůstává zachována po restartu a zapisuje se do auditního deníku.
+Model se vybírá v horní liště aplikace, která nabízí modely dostupné v místní instalaci Ollama. Volba se ukládá do databáze i se jménem uživatele a časem a zůstává zachována po restartu.
 
 Výchozí model lze změnit proměnnou prostředí `MRO_MODEL_LLM`. Položka *výchozí* v rozhraní vrátí výběr na tuto nakonfigurovanou hodnotu.
 

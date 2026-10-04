@@ -6,6 +6,8 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
+from app.config import vychozi_model
+
 MODELY = ["gemma2:9b", "mistral:7b", "qwen2.5:7b"]
 
 @pytest.fixture(scope="module")
@@ -72,14 +74,14 @@ class TestZmenaModelu:
         klient.put("/api/system/model", json={"model": "qwen2.5:7b", "kdo": "test"})
         stav = klient.get("/api/system/stav").json()
         assert stav["aktivni_model"] == "qwen2.5:7b"
-        assert stav["vychozi_model"] == "mistral:7b"
+        assert stav["vychozi_model"] == vychozi_model()
         assert stav["model_prepnut_uzivatelem"] is True
 
     def test_prazdna_hodnota_vraci_vychozi_model(self, klient):
         klient.put("/api/system/model", json={"model": "qwen2.5:7b", "kdo": "test"})
         odpoved = klient.put("/api/system/model", json={"model": None, "kdo": "test"})
         assert odpoved.status_code == 200
-        assert odpoved.json()["aktivni"] == "mistral:7b"
+        assert odpoved.json()["aktivni"] == vychozi_model()
         assert odpoved.json()["prepnuto_uzivatelem"] is False
 
 
@@ -93,7 +95,7 @@ class TestOvereniModelu:
 
     def test_odmitnuti_nezmeni_aktivni_model(self, klient):
         klient.put("/api/system/model", json={"model": "neexistuje:1b", "kdo": "test"})
-        assert klient.get("/api/system/model").json()["aktivni"] == "mistral:7b"
+        assert klient.get("/api/system/model").json()["aktivni"] == vychozi_model()
 
     def test_nedostupna_ollama_zabrani_prepnuti(self, klient, monkeypatch):
         from app.jadro.llm import OllamaPoskytovatel
@@ -108,18 +110,18 @@ class TestOvereniModelu:
 
 class TestTrvalostVolby:
     def test_volba_prezije_restart(self, prostredi):
-        from app.config import aktivni_model, nastav_aktivni_model
+        from app.config import aktivni_model, nastav_aktivni_model, vychozi_model
         from app.main import vytvor_aplikaci
         from app.sluzby.volba_modelu import obnov_ulozenou_volbu
 
         with TestClient(vytvor_aplikaci()) as klient:
-            klient.put("/api/system/model", json={"model": "gemma2:9b", "kdo": "test"})
+            klient.put("/api/system/model", json={"model": "qwen2.5:7b", "kdo": "test"})
 
         nastav_aktivni_model(None)
-        assert aktivni_model() == "mistral:7b"
+        assert aktivni_model() == vychozi_model()
 
-        assert obnov_ulozenou_volbu() == "gemma2:9b"
-        assert aktivni_model() == "gemma2:9b"
+        assert obnov_ulozenou_volbu() == "qwen2.5:7b"
+        assert aktivni_model() == "qwen2.5:7b"
 
     def test_navrat_na_vychozi_smaze_ulozenou_volbu(self, klient):
         from app.db import precti_volbu

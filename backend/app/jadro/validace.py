@@ -15,6 +15,7 @@ DELKA_KONCOVKY_PODLE_DELKY: tuple[tuple[int, int], ...] = (
 )
 
 MAXIMALNI_ROZDIL_KMENU = 2
+MINIMALNI_DELKA_PRO_POMER = 20
 
 NEVYZNAMOVA_SLOVA: frozenset[str] = frozenset({
     "a", "i", "o", "u", "v", "s", "z", "k", "na", "pro", "do", "od", "se", "je",
@@ -176,7 +177,7 @@ def zvaliduj_preklad(
             "Překlad nezachoval všechny technické identifikátory ze zdrojového textu."
         )
 
-    if zdrojovy_text.strip() and preklad.strip():
+    if len(zdrojovy_text.strip()) >= MINIMALNI_DELKA_PRO_POMER and preklad.strip():
         pomer = len(preklad) / len(zdrojovy_text)
         if pomer < 0.4:
             vysledek.varovani.append(

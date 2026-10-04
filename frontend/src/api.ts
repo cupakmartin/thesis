@@ -24,24 +24,57 @@ async function zavolej<T>(cesta: string, moznosti: RequestInit = {}): Promise<T>
     );
   }
 
-  if (!odpoved.ok) {
-    let podrobnost = `Server odpověděl chybou ${odpoved.status}.`;
-    try {
-      const telo = await odpoved.json();
-      if (telo?.detail) {
-        podrobnost =
-          typeof telo.detail === "string"
-            ? telo.detail
-            : JSON.stringify(telo.detail);
-      }
-    } catch {
-      /* tělo odpovědi nebylo ve formátu JSON */
-    }
-    throw new ChybaApi(odpoved.status, podrobnost);
-  }
+  if (!odpoved.ok) throw await chybaZOdpovedi(odpoved);
 
   if (odpoved.status === 204) return undefined as T;
   return (await odpoved.json()) as T;
+}
+
+async function chybaZOdpovedi(odpoved: Response): Promise<ChybaApi> {
+  let podrobnost = `Server odpověděl chybou ${odpoved.status}.`;
+  try {
+    const telo = await odpoved.json();
+    if (telo?.detail) {
+      podrobnost =
+        typeof telo.detail === "string"
+          ? telo.detail
+          : JSON.stringify(telo.detail);
+    }
+  } catch {
+    /* tělo odpovědi nebylo ve formátu JSON */
+  }
+  return new ChybaApi(odpoved.status, podrobnost);
+}
+
+async function odesli(cesta: string, moznosti: RequestInit): Promise<Response> {
+  let odpoved: Response;
+  try {
+    odpoved = await fetch(`${ZAKLAD}${cesta}`, moznosti);
+  } catch (duvod) {
+    if (duvod instanceof DOMException && duvod.name === "AbortError") throw duvod;
+    throw new ChybaApi(0, "Server neodpovídá. Ověřte, že aplikace běží (spustit.py).");
+  }
+  if (!odpoved.ok) throw await chybaZOdpovedi(odpoved);
+  return odpoved;
+}
+
+async function ctiUdalosti<T>(odpoved: Response, naUdalost: (u: T) => void) {
+  if (!odpoved.body) return;
+  const ctenar = odpoved.body.getReader();
+  const dekoder = new TextDecoder();
+  let zbytek = "";
+  for (;;) {
+    const { done, value } = await ctenar.read();
+    if (done) break;
+    zbytek += dekoder.decode(value, { stream: true });
+    let konec: number;
+    while ((konec = zbytek.indexOf("\n")) >= 0) {
+      const radek = zbytek.slice(0, konec).trim();
+      zbytek = zbytek.slice(konec + 1);
+      if (radek) naUdalost(JSON.parse(radek) as T);
+    }
+  }
+  if (zbytek.trim()) naUdalost(JSON.parse(zbytek) as T);
 }
 
 const ziskej = <T>(cesta: string) => zavolej<T>(cesta);
@@ -245,6 +278,7 @@ export interface VysledekPrekladu {
   zdrojovy_jazyk: string;
   cilovy_jazyk: string;
   pouzity_glosar: boolean;
+  zpusob: string;
   model: string;
   doba_s: number;
   doba_vyhledani_s: number;
@@ -253,6 +287,46 @@ export interface VysledekPrekladu {
   nalezene_terminy: NalezenyTermin[];
   validace: Validace;
 }
+
+export interface TextZPdf {
+  text: string;
+  pocet_stran: number;
+  pocet_znaku: number;
+}
+
+export interface UsekDokumentu {
+  typ: "usek";
+  poradi: number;
+  radek: number;
+  odrazka: string;
+  zdroj: string;
+  preklad: string;
+  zpusob: string;
+  doba_s: number;
+  pocet_ocekavanych: number;
+  pocet_dodrzenych: number;
+  varovani: string[];
+}
+
+export interface HotovyDokument {
+  typ: "hotovo";
+  preklad: string;
+  model: string;
+  doba_s: number;
+  pocet_useku: number;
+  mira_dodrzeni_glosare: number;
+  pocet_ocekavanych: number;
+  pocet_dodrzenych: number;
+  identifikatory_zachovany: boolean;
+  chybejici_identifikatory: string[];
+  varovani: string[];
+}
+
+export type UdalostDokumentu =
+  | { typ: "plan"; pocet_useku: number; pocet_radku: number; pocet_znaku: number }
+  | UsekDokumentu
+  | HotovyDokument
+  | { typ: "chyba"; zprava: string };
 
 export interface TerminGlosare {
   id: string;
@@ -382,6 +456,33 @@ export const api = {
       temperature?: number | null;
       itemnum?: string | null;
     }) => posli<VysledekPrekladu>("/preklad", telo),
+    dokument: async (
+      telo: {
+        text: string;
+        zdrojovy_jazyk: string;
+        cilovy_jazyk: string;
+        pouzit_glosar: boolean;
+        model?: string | null;
+      },
+      naUdalost: (udalost: UdalostDokumentu) => void,
+      signal?: AbortSignal,
+    ) => {
+      const odpoved = await odesli("/preklad/dokument", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(telo),
+        signal,
+      });
+      await ctiUdalosti(odpoved, naUdalost);
+    },
+    pdf: async (soubor: File): Promise<TextZPdf> => {
+      const odpoved = await odesli("/preklad/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/pdf" },
+        body: soubor,
+      });
+      return (await odpoved.json()) as TextZPdf;
+    },
     historie: (f: Record<string, unknown>) =>
       ziskej<Strankovani<Record<string, unknown>>>(
         `/preklad/historie${parametry(f)}`,

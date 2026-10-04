@@ -3,13 +3,23 @@ from __future__ import annotations
 
 import json
 import logging
+import time
+from collections.abc import Iterator
 from dataclasses import asdict
 from typing import Any
 
 from app.db import nyni, pripoj
-from app.jadro.glosar import Glosar, glosar
-from app.jadro.rag import PozadavekPrekladu, PrekladacRAG, VysledekPrekladu
+from app.jadro.dokument import rozdel_na_useky, sestav_preklad
+from app.jadro.glosar import Glosar, NalezenyTermin, glosar
+from app.jadro.rag import (
+    ZPUSOB_GLOSAR,
+    PozadavekPrekladu,
+    PrekladacRAG,
+    VysledekPrekladu,
+)
 from app.jadro.validace import VysledekValidace, zvaliduj_preklad
+
+ZPUSOB_DOKUMENT = "dokument"
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +59,99 @@ class SluzbaPrekladu:
             self._uloz(vysledek, validace, kdo, itemnum)
 
         return vysledek, validace
+
+    def prelozi_dokument(
+        self,
+        text: str,
+        zdrojovy_jazyk: str = "en",
+        cilovy_jazyk: str = "cs",
+        pouzit_glosar: bool = True,
+        model: str | None = None,
+        kdo: str = "systém",
+    ) -> Iterator[dict[str, Any]]:
+        if zdrojovy_jazyk == cilovy_jazyk:
+            raise ValueError("Zdrojový a cílový jazyk se musí lišit.")
+        useky = rozdel_na_useky(text)
+        k_prekladu = [u for u in useky if u.prelozit]
+        if not k_prekladu:
+            raise ValueError("Text neobsahuje nic k překladu.")
+
+        yield {
+            "typ": "plan",
+            "pocet_useku": len(k_prekladu),
+            "pocet_radku": max(u.radek for u in useky) + 1,
+            "pocet_znaku": len(text),
+        }
+
+        cas_start = time.perf_counter()
+        preklady: dict[int, str] = {}
+        terminy: dict[str, NalezenyTermin] = {}
+        souhrn = VysledekValidace()
+        pouzity_model = ""
+
+        for poradi, usek in enumerate(k_prekladu, 1):
+            vysledek, validace = self.prelozi(
+                PozadavekPrekladu(
+                    text=usek.text,
+                    zdrojovy_jazyk=zdrojovy_jazyk,
+                    cilovy_jazyk=cilovy_jazyk,
+                    pouzit_glosar=pouzit_glosar,
+                    model=model,
+                ),
+                kdo=kdo,
+                ulozit=False,
+            )
+            preklady[usek.poradi] = vysledek.preklad
+            for nalezeny in vysledek.nalezene_terminy:
+                terminy.setdefault(nalezeny.polozka.id, nalezeny)
+            if vysledek.zpusob != ZPUSOB_GLOSAR:
+                pouzity_model = vysledek.model
+            souhrn.kontroly.extend(validace.kontroly)
+            souhrn.chybejici_identifikatory.extend(validace.chybejici_identifikatory)
+            souhrn.varovani.extend(f"Úsek {poradi}: {v}" for v in validace.varovani)
+
+            yield {
+                "typ": "usek",
+                "poradi": poradi,
+                "radek": usek.radek,
+                "odrazka": usek.odrazka,
+                "zdroj": usek.text,
+                "preklad": vysledek.preklad,
+                "zpusob": vysledek.zpusob,
+                "doba_s": round(vysledek.doba_s, 3),
+                "pocet_ocekavanych": validace.pocet_ocekavanych,
+                "pocet_dodrzenych": validace.pocet_dodrzenych,
+                "varovani": validace.varovani,
+            }
+
+        preklad = sestav_preklad(useky, preklady)
+        doba = time.perf_counter() - cas_start
+        celkovy = VysledekPrekladu(
+            zdrojovy_text=text,
+            preklad=preklad,
+            zdrojovy_jazyk=zdrojovy_jazyk,
+            cilovy_jazyk=cilovy_jazyk,
+            pouzity_glosar=pouzit_glosar,
+            nalezene_terminy=list(terminy.values()),
+            model=pouzity_model or ZPUSOB_GLOSAR,
+            doba_s=doba,
+            zpusob=ZPUSOB_DOKUMENT,
+        )
+        self._uloz(celkovy, souhrn, kdo, None)
+
+        yield {
+            "typ": "hotovo",
+            "preklad": preklad,
+            "model": celkovy.model,
+            "doba_s": round(doba, 2),
+            "pocet_useku": len(k_prekladu),
+            "mira_dodrzeni_glosare": souhrn.mira_dodrzeni_glosare,
+            "pocet_ocekavanych": souhrn.pocet_ocekavanych,
+            "pocet_dodrzenych": souhrn.pocet_dodrzenych,
+            "identifikatory_zachovany": souhrn.identifikatory_zachovany,
+            "chybejici_identifikatory": sorted(set(souhrn.chybejici_identifikatory)),
+            "varovani": souhrn.varovani,
+        }
 
     @staticmethod
     def _uloz(

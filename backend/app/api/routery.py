@@ -1,18 +1,22 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import json
 import logging
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import PlainTextResponse
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi.responses import PlainTextResponse, StreamingResponse
+from starlette.concurrency import run_in_threadpool
 
 from app.api.schemas import (
     OdpovedSeStrankovanim,
     PolozkaGlosareAPI,
     Potvrzeni,
     PozadavekDeduplikace,
+    PozadavekDokumentuAPI,
     PozadavekImportu,
     PozadavekKontrolyPolozky,
     PozadavekPrekladuAPI,
@@ -29,6 +33,7 @@ from app.jadro.duplicity import (
     ZaznamPolozky,
     zkontroluj_novou_polozku,
 )
+from app.jadro.dokument import MAX_VELIKOST_PDF, ChybaDokumentu, vytez_text_z_pdf
 from app.jadro.glosar import PolozkaGlosare, glosar
 from app.jadro.llm import OllamaPoskytovatel
 from app.jadro.rag import PozadavekPrekladu
@@ -397,6 +402,7 @@ def prelozi_text(pozadavek: PozadavekPrekladuAPI) -> dict[str, Any]:
         "zdrojovy_jazyk": vysledek.zdrojovy_jazyk,
         "cilovy_jazyk": vysledek.cilovy_jazyk,
         "pouzity_glosar": vysledek.pouzity_glosar,
+        "zpusob": vysledek.zpusob,
         "model": vysledek.model,
         "doba_s": round(vysledek.doba_s, 3),
         "doba_vyhledani_s": round(vysledek.doba_vyhledani_s, 3),
@@ -438,6 +444,67 @@ def prelozi_text(pozadavek: PozadavekPrekladuAPI) -> dict[str, Any]:
                 for k in validace.kontroly
             ],
         },
+    }
+
+
+def _radek_ndjson(udalost: dict[str, Any]) -> str:
+    return json.dumps(udalost, ensure_ascii=False) + "\n"
+
+
+@router_preklad.post("/dokument")
+def prelozi_dokument(pozadavek: PozadavekDokumentuAPI) -> StreamingResponse:
+    """Přeloží delší text po úsecích; průběh se odesílá po řádcích NDJSON.
+
+    Události: plan (počet úseků), usek (každý přeložený úsek), hotovo
+    (celý překlad a souhrnná kontrola), případně chyba.
+    """
+    udalosti = sluzba_prekladu().prelozi_dokument(
+        text=pozadavek.text,
+        zdrojovy_jazyk=pozadavek.zdrojovy_jazyk,
+        cilovy_jazyk=pozadavek.cilovy_jazyk,
+        pouzit_glosar=pozadavek.pouzit_glosar,
+        model=pozadavek.model,
+        kdo=pozadavek.kdo,
+    )
+    try:
+        prvni = next(udalosti)
+    except ValueError as chyba:
+        raise HTTPException(status_code=400, detail=str(chyba)) from chyba
+
+    def proud() -> Iterator[str]:
+        yield _radek_ndjson(prvni)
+        try:
+            for udalost in udalosti:
+                yield _radek_ndjson(udalost)
+        except Exception as chyba:
+            logger.exception("Překlad dokumentu přerušen.")
+            yield _radek_ndjson({"typ": "chyba", "zprava": str(chyba)})
+
+    return StreamingResponse(proud(), media_type="application/x-ndjson")
+
+
+@router_preklad.post(
+    "/pdf",
+    openapi_extra={"requestBody": {
+        "required": True,
+        "content": {"application/pdf": {"schema": {"type": "string",
+                                                    "format": "binary"}}},
+    }},
+)
+async def nacti_pdf(request: Request) -> dict[str, Any]:
+    """Vytěží text z nahraného PDF; soubor se posílá jako tělo požadavku."""
+    delka = int(request.headers.get("content-length") or 0)
+    if delka > MAX_VELIKOST_PDF:
+        raise HTTPException(status_code=413, detail="Soubor PDF je příliš velký.")
+    data = await request.body()
+    try:
+        dokument = await run_in_threadpool(vytez_text_z_pdf, data)
+    except ChybaDokumentu as chyba:
+        raise HTTPException(status_code=422, detail=str(chyba)) from chyba
+    return {
+        "text": dokument.text,
+        "pocet_stran": dokument.pocet_stran,
+        "pocet_znaku": len(dokument.text),
     }
 
 

@@ -162,6 +162,23 @@ class Glosar:
 
         return nalezene
 
+    def najdi_presnou_shodu(
+        self, text: str, zdrojovy_jazyk: str
+    ) -> PolozkaGlosare | None:
+        klic = odstran_diakritiku(text).lower().strip()
+        for poradi in self._podle_tvaru.get(klic, []):
+            polozka = self._polozky[poradi]
+            zdroj = polozka.termin(zdrojovy_jazyk)
+            if zdroj and odstran_diakritiku(zdroj).lower().strip() == klic:
+                return polozka
+        return None
+
+    def najdi_doslovne(self, text: str) -> list[NalezenyTermin]:
+        return [
+            NalezenyTermin(self._polozky[poradi], skore, ZPUSOB_PRIMY)
+            for poradi, skore in self._najdi_prime_vyskyty(text)
+        ]
+
     def najdi_relevantni(
         self,
         text: str,

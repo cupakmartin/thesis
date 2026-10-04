@@ -99,9 +99,67 @@ class TestZaznamPrubehu:
 
         zaznam = prubeh_prekladu("Replace the impeller.")
         nazvy = [k["nazev"] for k in zaznam["kroky"]]
-        assert len(nazvy) == 6
+        assert len(nazvy) == 7
+        assert nazvy[0] == "Určení způsobu překladu"
         assert "Vektorová reprezentace vstupu" in nazvy
         assert "Volání jazykového modelu" in nazvy
+
+    def test_termin_glosare_se_obejde_bez_modelu(self, prostredi, monkeypatch):
+        from app.jadro.llm import OllamaPoskytovatel
+
+        def _nesmi_byt_volano(*args, **kwargs):
+            raise AssertionError("model byl volán, ačkoli odpověděl glosář")
+
+        monkeypatch.setattr(OllamaPoskytovatel, "generuj", _nesmi_byt_volano)
+        from app.sluzby.prubeh import prubeh_prekladu
+
+        zaznam = prubeh_prekladu("Nut")
+        nazvy = [k["nazev"] for k in zaznam["kroky"]]
+        assert zaznam["vystup"] == "Matice"
+        assert zaznam["zpusob"] == "glosář"
+        assert "Volání jazykového modelu" not in nazvy
+        assert "Sestavení promptu" not in nazvy
+
+    def test_kratky_vstup_ukazuje_skutecne_parametry(self, prostredi, monkeypatch):
+        from app.jadro.llm import OdpovedLLM, OllamaPoskytovatel
+
+        monkeypatch.setattr(
+            OllamaPoskytovatel, "generuj",
+            lambda self, systemova_instrukce, uzivatelsky_vstup, **kw: OdpovedLLM(
+                text="Strom\n\nPoznámka navíc.", model="zkousime:1b", doba_s=0.1,
+            ),
+        )
+        from app.sluzby.prubeh import prubeh_prekladu
+
+        zaznam = prubeh_prekladu("Tree")
+        kroky = {k["nazev"]: k for k in zaznam["kroky"]}
+        volani = kroky["Volání jazykového modelu"]["udaje"]
+
+        assert zaznam["vystup"] == "Strom"
+        assert volani["max_tokenu"] <= 64
+        assert volani["odpoved_doslovne"].startswith("Strom")
+        assert kroky["Kontrola výstupu"]["udaje"]["odpoved_upravena"] is True
+        assert "Vektorová reprezentace vstupu" not in kroky
+
+    def test_zobrazeny_vektor_je_ten_pouzity(self, prostredi, monkeypatch):
+        from app.jadro.embeddingy import spravce_embeddingu
+        from app.jadro.llm import OdpovedLLM, OllamaPoskytovatel
+        from app.jadro.normalizace import normalizuj_pro_embedding
+
+        monkeypatch.setattr(
+            OllamaPoskytovatel, "generuj",
+            lambda self, systemova_instrukce, uzivatelsky_vstup, **kw: OdpovedLLM(
+                text="x", model="zkousime:1b", doba_s=0.1,
+            ),
+        )
+        from app.sluzby.prubeh import _ukazka_vektoru, prubeh_prekladu
+
+        text = "Replace the IMPELLER on pump P-101."
+        zaznam = prubeh_prekladu(text)
+        zobrazeny = next(k for k in zaznam["kroky"]
+                         if k["nazev"] == "Vektorová reprezentace vstupu")
+        pouzity = spravce_embeddingu().zakoduj_jeden(normalizuj_pro_embedding(text))
+        assert zobrazeny["udaje"]["vektor"] == _ukazka_vektoru(pouzity)
 
     def test_vektor_ma_ocekavanou_dimenzi(self, prostredi):
         from app.sluzby.prubeh import prubeh_podobnosti

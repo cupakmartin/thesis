@@ -1,6 +1,12 @@
-import { useState } from "react";
-import { api, type VysledekPrekladu } from "../api";
-import {useNacti} from "../hooky";
+import { useRef, useState } from "react";
+import {
+  api,
+  type HotovyDokument,
+  type UdalostDokumentu,
+  type UsekDokumentu,
+  type VysledekPrekladu,
+} from "../api";
+import { useNacti } from "../hooky";
 import {
   Ikona,
   Panel,
@@ -17,6 +23,67 @@ const UKAZKY = [
   "Check the gate valve for internal leakage and inspect the shaft seal.",
 ];
 
+const UKAZKOVA_SLOVA = ["Nut", "Ladder", "Safety goggles", "Torque wrench"];
+
+const UKAZKOVY_POSTUP = `Centrifugal pump seal replacement
+
+WARNING: Disconnect power before servicing.
+
+Tools required:
+1. Torque wrench
+2. Ring spanner 17 mm
+3. Safety goggles
+
+Procedure
+1. Close the suction and discharge valves and drain the pump casing.
+2. Remove the eight bolts of the bearing housing cover and lift the cover carefully.
+3. Replace the mechanical seal and the O-ring. Do not reuse the old gasket.
+4. Tighten the bolts crosswise to 45 Nm.
+5. Open the valves slowly and check the seal for leaks.`;
+
+const MAX_ZNAKU_JEDNOHO = 1000;
+const MAX_ZNAKU_DOKUMENTU = 100_000;
+
+interface StavDokumentu {
+  celkem: number;
+  useky: UsekDokumentu[];
+  hotovo: HotovyDokument | null;
+  chyba: string | null;
+}
+
+interface InfoPdf {
+  nazev: string;
+  pocet_stran: number;
+  pocet_znaku: number;
+}
+
+function aktualizujDokument(
+  stav: StavDokumentu | null,
+  udalost: UdalostDokumentu,
+): StavDokumentu {
+  const d = stav ?? { celkem: 0, useky: [], hotovo: null, chyba: null };
+  if (udalost.typ === "plan") return { ...d, celkem: udalost.pocet_useku };
+  if (udalost.typ === "usek") return { ...d, useky: [...d.useky, udalost] };
+  if (udalost.typ === "hotovo") return { ...d, hotovo: udalost };
+  return { ...d, chyba: udalost.zprava };
+}
+
+function popisZpusobu(zpusob: string): string {
+  if (zpusob === "glosář") return "z glosáře";
+  if (zpusob === "krátký výraz") return "krátký výraz";
+  return "věta";
+}
+
+function stahniText(text: string, nazev: string) {
+  const odkaz = document.createElement("a");
+  odkaz.href = URL.createObjectURL(
+    new Blob([text], { type: "text/plain;charset=utf-8" }),
+  );
+  odkaz.download = nazev;
+  odkaz.click();
+  setTimeout(() => URL.revokeObjectURL(odkaz.href), 1000);
+}
+
 export default function Preklad() {
   const { pridej, vykresli } = useOznameni();
   const stav = useNacti(() => api.system.stav(), []);
@@ -30,54 +97,136 @@ export default function Preklad() {
 
   const [sGlosarem, nastavSGlosarem] = useState<VysledekPrekladu | null>(null);
   const [bezGlosare, nastavBezGlosare] = useState<VysledekPrekladu | null>(null);
+  const [dokument, nastavDokument] = useState<StavDokumentu | null>(null);
   const [pracuje, nastavPracuje] = useState(false);
   const [zobrazitPrompt, nastavZobrazitPrompt] = useState(false);
+
+  const [infoPdf, nastavInfoPdf] = useState<InfoPdf | null>(null);
+  const [nacitaPdf, nastavNacitaPdf] = useState(false);
+  const vyberSouboru = useRef<HTMLInputElement>(null);
+  const ovladac = useRef<AbortController | null>(null);
+
+  const pocetRadku = text.split("\n").filter((r) => r.trim()).length;
+  const jeDokument = pocetRadku > 1 || text.length > MAX_ZNAKU_JEDNOHO;
+  const prilisDlouhy = text.length > MAX_ZNAKU_DOKUMENTU;
+
+  const vycistiVysledky = () => {
+    nastavSGlosarem(null);
+    nastavBezGlosare(null);
+    nastavDokument(null);
+  };
+
+  const vlozText = (novy: string) => {
+    nastavText(novy);
+    nastavInfoPdf(null);
+    vycistiVysledky();
+  };
 
   const prohodJazyky = () => {
     nastavZdrojovy(cilovy);
     nastavCilovy(zdrojovy);
   };
 
-  const prelozi = async () => {
-    if (!text.trim()) return;
-    nastavPracuje(true);
-    nastavSGlosarem(null);
-    nastavBezGlosare(null);
-
+  const preloziJeden = async () => {
     const zaklad = {
       text,
       zdrojovy_jazyk: zdrojovy,
       cilovy_jazyk: cilovy,
       model: model || null,
-      temperature
+      temperature,
     };
+    if (srovnat) {
+      nastavBezGlosare(
+        await api.preklad.prelozit({ ...zaklad, pouzit_glosar: false }),
+      );
+    }
+    nastavSGlosarem(
+      await api.preklad.prelozit({ ...zaklad, pouzit_glosar: true }),
+    );
+  };
 
+  const preloziDokument = async () => {
+    const ovl = new AbortController();
+    ovladac.current = ovl;
+    nastavDokument({ celkem: 0, useky: [], hotovo: null, chyba: null });
     try {
-      if (srovnat) {
-        nastavBezGlosare(
-          await api.preklad.prelozit({ ...zaklad, pouzit_glosar: false }),
+      await api.preklad.dokument(
+        {
+          text,
+          zdrojovy_jazyk: zdrojovy,
+          cilovy_jazyk: cilovy,
+          pouzit_glosar: true,
+          model: model || null,
+        },
+        (udalost) => {
+          if (udalost.typ === "chyba") pridej("chyba", udalost.zprava);
+          nastavDokument((d) => aktualizujDokument(d, udalost));
+        },
+        ovl.signal,
+      );
+    } finally {
+      ovladac.current = null;
+    }
+  };
+
+  const prelozi = async () => {
+    if (!text.trim() || prilisDlouhy) return;
+    nastavPracuje(true);
+    vycistiVysledky();
+    try {
+      if (jeDokument) await preloziDokument();
+      else await preloziJeden();
+    } catch (duvod) {
+      if (duvod instanceof DOMException && duvod.name === "AbortError") {
+        pridej("informace", "Překlad byl zastaven.");
+      } else {
+        pridej(
+          "chyba",
+          duvod instanceof Error ? duvod.message : "Překlad se nezdařil.",
         );
       }
-      nastavSGlosarem(
-        await api.preklad.prelozit({ ...zaklad, pouzit_glosar: true }),
-      );
-    } catch (duvod) {
-      pridej(
-        "chyba",
-        duvod instanceof Error ? duvod.message : "Překlad se nezdařil.",
-      );
     } finally {
       nastavPracuje(false);
     }
   };
 
+  const nahrajPdf = async (soubor: File) => {
+    nastavNacitaPdf(true);
+    try {
+      const vysledek = await api.preklad.pdf(soubor);
+      nastavText(vysledek.text);
+      nastavInfoPdf({
+        nazev: soubor.name,
+        pocet_stran: vysledek.pocet_stran,
+        pocet_znaku: vysledek.pocet_znaku,
+      });
+      vycistiVysledky();
+    } catch (duvod) {
+      pridej(
+        "chyba",
+        duvod instanceof Error ? duvod.message : "PDF se nepodařilo načíst.",
+      );
+    } finally {
+      nastavNacitaPdf(false);
+      if (vyberSouboru.current) vyberSouboru.current.value = "";
+    }
+  };
+
+  const kopiruj = (obsah: string) => {
+    navigator.clipboard
+      .writeText(obsah)
+      .then(() => pridej("uspech", "Překlad zkopírován do schránky."))
+      .catch(() => pridej("chyba", "Kopírování se nezdařilo."));
+  };
+
   const ollamaNebezi = stav.data && !stav.data.ollama_dostupna;
+  const nazevSouboru = infoPdf
+    ? `${infoPdf.nazev.replace(/\.pdf$/i, "")}_preklad.txt`
+    : "preklad.txt";
 
   return (
     <>
-      <ZahlaviObrazovky
-        nadpis="Překlad technických textů"
-      />
+      <ZahlaviObrazovky nadpis="Překlad technických textů" />
 
       {ollamaNebezi && (
         <div className="panel mb-4 border-chyba/40 bg-chybaTlumena p-3.5 flex items-start gap-2.5">
@@ -129,16 +278,57 @@ export default function Preklad() {
               </div>
 
               <div>
-                <label className="stitek-pole" htmlFor="zdrojovy-text">
-                  Text k překladu
-                </label>
+                <div className="flex items-end justify-between gap-2">
+                  <label className="stitek-pole" htmlFor="zdrojovy-text">
+                    Text k překladu
+                  </label>
+                  <button
+                    className="tlacitko-tichy text-xs mb-1"
+                    onClick={() => vyberSouboru.current?.click()}
+                    disabled={nacitaPdf || pracuje}
+                    title="Text se z PDF vytěží a vloží do pole, kde jej lze před překladem upravit."
+                  >
+                    {nacitaPdf ? "Načítám PDF…" : "Nahrát PDF…"}
+                  </button>
+                  <input
+                    ref={vyberSouboru}
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="hidden"
+                    onChange={(e) => {
+                      const soubor = e.target.files?.[0];
+                      if (soubor) void nahrajPdf(soubor);
+                    }}
+                  />
+                </div>
                 <textarea
                   id="zdrojovy-text"
-                  className="pole min-h-[132px] resize-y leading-relaxed"
+                  className={`pole resize-y leading-relaxed ${jeDokument ? "min-h-[260px]" : "min-h-[132px]"}`}
                   value={text}
                   onChange={(e) => nastavText(e.target.value)}
-                  placeholder="Vložte technický text…"
+                  placeholder="Vložte technický text nebo nahrajte PDF…"
                 />
+                {infoPdf && (
+                  <p className="text-xs text-textTlumeny mt-1">
+                    Načteno z „{infoPdf.nazev}“: {infoPdf.pocet_stran}{" "}
+                    {infoPdf.pocet_stran === 1 ? "strana" : infoPdf.pocet_stran < 5 ? "strany" : "stran"},{" "}
+                    {infoPdf.pocet_znaku.toLocaleString("cs-CZ")} znaků. Text můžete
+                    před překladem upravit.
+                  </p>
+                )}
+                {jeDokument && !prilisDlouhy && (
+                  <p className="text-xs text-textTlumeny mt-1">
+                    Text bude přeložen jako dokument — po odstavcích, nadpisech
+                    a položkách seznamu, se zachováním struktury.
+                  </p>
+                )}
+                {prilisDlouhy && (
+                  <p className="text-xs text-chyba mt-1">
+                    Text má {text.length.toLocaleString("cs-CZ")} znaků; najednou lze
+                    přeložit nejvýše {MAX_ZNAKU_DOKUMENTU.toLocaleString("cs-CZ")}.
+                    Rozdělte jej na menší části.
+                  </p>
+                )}
               </div>
 
               <details className="group">
@@ -184,191 +374,413 @@ export default function Preklad() {
                 </div>
               </details>
 
-              <label className="flex items-center gap-2 text-sm text-textTlumeny cursor-pointer">
+              <label
+                className={`flex items-center gap-2 text-sm cursor-pointer ${jeDokument ? "text-textSlaby" : "text-textTlumeny"}`}
+                title={jeDokument ? "U dokumentu se srovnání neprovádí — zdvojnásobilo by dobu překladu." : undefined}
+              >
                 <input
                   type="checkbox"
                   className="accent-akcent"
-                  checked={srovnat}
+                  checked={srovnat && !jeDokument}
+                  disabled={jeDokument}
                   onChange={(e) => nastavSrovnat(e.target.checked)}
                 />
                 Přeložit i bez glosáře pro srovnání
               </label>
 
-              <button
-                className="tlacitko-hlavni w-full"
-                onClick={() => void prelozi()}
-                disabled={pracuje || !text.trim() || Boolean(ollamaNebezi)}
-              >
-                {pracuje ? "Překládám…" : "Přeložit"}
-              </button>
+              {pracuje && jeDokument ? (
+                <button
+                  className="tlacitko-vedlejsi w-full"
+                  onClick={() => ovladac.current?.abort()}
+                >
+                  Zastavit překlad
+                </button>
+              ) : (
+                <button
+                  className="tlacitko-hlavni w-full"
+                  onClick={() => void prelozi()}
+                  disabled={
+                    pracuje || !text.trim() || prilisDlouhy || Boolean(ollamaNebezi)
+                  }
+                >
+                  {pracuje
+                    ? "Překládám…"
+                    : jeDokument
+                      ? "Přeložit dokument"
+                      : "Přeložit"}
+                </button>
+              )}
             </div>
           </Panel>
 
-          <Panel nadpis="Ukázkové věty">
+          <Panel nadpis="Ukázky">
             <div className="space-y-2">
               {UKAZKY.map((u) => (
-                <button
-                  key={u}
-                  className="w-full text-left rounded-xs border border-obrys bg-plocha2 px-3 py-2 text-[0.8125rem] leading-snug text-textTlumeny transition-colors hover:border-akcent hover:bg-akcentTlumeny hover:text-akcent"
-                  onClick={() => nastavText(u)}
-                >
-                  {u}
-                </button>
+                <TlacitkoUkazky key={u} text={u} naVyber={vlozText} />
               ))}
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {UKAZKOVA_SLOVA.map((u) => (
+                  <button
+                    key={u}
+                    className="rounded-xs border border-obrys bg-plocha2 px-2 py-1 text-[0.8125rem] text-textTlumeny hover:border-akcent hover:text-akcent"
+                    onClick={() => vlozText(u)}
+                  >
+                    {u}
+                  </button>
+                ))}
+              </div>
+              <TlacitkoUkazky
+                text="Pracovní postup — výměna ucpávky čerpadla (dokument)"
+                naVyber={() => vlozText(UKAZKOVY_POSTUP)}
+              />
             </div>
           </Panel>
         </div>
 
         <div className="space-y-4">
-          {pracuje && !sGlosarem && (
-            <Panel>
-              <div className="py-10 text-center">
-                <div className="ukazatel h-2 max-w-sm mx-auto">
-                  <div className="ukazatel-vypln prubeh-neurcity w-full" />
+          {dokument ? (
+            <PrekladDokumentu
+              stav={dokument}
+              pracuje={pracuje}
+              naKopirovani={kopiruj}
+              naStazeni={(obsah) => stahniText(obsah, nazevSouboru)}
+            />
+          ) : (
+            <>
+              {pracuje && !sGlosarem && (
+                <Panel>
+                  <div className="py-10 text-center">
+                    <div className="ukazatel h-2 max-w-sm mx-auto">
+                      <div className="ukazatel-vypln prubeh-neurcity w-full" />
+                    </div>
+                    <p className="mt-3 text-sm text-textTlumeny">
+                      {bezGlosare
+                        ? "Překládám s glosářem…"
+                        : srovnat
+                          ? "Překládám bez glosáře…"
+                          : "Překládám…"}
+                    </p>
+                    <p className="mt-1 text-xs text-textSlaby">
+                      Model běží lokálně; první volání po spuštění bývá pomalejší.
+                    </p>
+                  </div>
+                </Panel>
+              )}
+
+              {!pracuje && !sGlosarem && (
+                <Panel>
+                  <PrazdnyStav
+                    nadpis="Zadejte text a spusťte překlad"
+                    popis="Přeložit lze slovo, větu, delší text i obsah PDF. Výsledek se zobrazí spolu s termíny vyhledanými z glosáře a s kontrolou jejich dodržení."
+                  />
+                </Panel>
+              )}
+
+              {(bezGlosare || sGlosarem) && (
+                <div className={srovnat ? "grid lg:grid-cols-2 gap-4" : ""}>
+                  {srovnat && bezGlosare && (
+                    <VysledekPanelu
+                      nadpis="Bez glosáře"
+                      popis="Samotný jazykový model"
+                      vysledek={bezGlosare}
+                      barva="vystraha"
+                    />
+                  )}
+                  {sGlosarem && (
+                    <VysledekPanelu
+                      nadpis="S glosářem (RAG)"
+                      popis="Model s kontextem z firemního glosáře"
+                      vysledek={sGlosarem}
+                      barva="uspech"
+                    />
+                  )}
                 </div>
-                <p className="mt-3 text-sm text-textTlumeny">
-                  {bezGlosare
-                    ? "Překládám s glosářem…"
-                    : srovnat
-                      ? "Překládám bez glosáře…"
-                      : "Překládám…"}
-                </p>
-                <p className="mt-1 text-xs text-textSlaby">
-                  Model běží lokálně; první volání po spuštění bývá pomalejší.
-                </p>
-              </div>
-            </Panel>
-          )}
-
-          {!pracuje && !sGlosarem && (
-            <Panel>
-              <PrazdnyStav
-                nadpis="Zadejte text a spusťte překlad"
-                popis="Výsledek se zobrazí spolu s termíny vyhledanými z glosáře a s kontrolou jejich dodržení."
-              />
-            </Panel>
-          )}
-
-          {(bezGlosare || sGlosarem) && (
-            <div className={srovnat ? "grid lg:grid-cols-2 gap-4" : ""}>
-              {srovnat && bezGlosare && (
-                <VysledekPanelu
-                  nadpis="Bez glosáře"
-                  popis="Samotný jazykový model"
-                  vysledek={bezGlosare}
-                  barva="vystraha"
-                />
               )}
+
+              {sGlosarem && sGlosarem.nalezene_terminy.length > 0 && (
+                <TerminyGlosare vysledek={sGlosarem} />
+              )}
+
               {sGlosarem && (
-                <VysledekPanelu
-                  nadpis="S glosářem (RAG)"
-                  popis="Model s kontextem z firemního glosáře"
-                  vysledek={sGlosarem}
-                  barva="uspech"
-                />
-              )}
-            </div>
-          )}
-
-          {sGlosarem && sGlosarem.nalezene_terminy.length > 0 && (
-            <Panel
-              nadpis="Termíny vyhledané z glosáře"
-              popis={`${sGlosarem.nalezene_terminy.length} termínů předaných modelu jako závazný kontext`}
-              bezOdsazeni
-            >
-              <div className="overflow-x-auto">
-                <table className="tabulka">
-                  <thead>
-                    <tr>
-                      <th>Termín ve zdroji</th>
-                      <th>Závazný překlad</th>
-                      <th>Nalezeno</th>
-                      <th>Dodrženo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sGlosarem.nalezene_terminy.map((t) => {
-                      const kontrola = sGlosarem.validace.kontroly.find(
-                        (k) => k.termin_zdroj === t.termin_en,
-                      );
-                      return (
-                        <tr key={t.id}>
-                          <td>
-                            <span className="text-text">{t.termin_en}</span>
-                            {t.nespravne && (
-                              <span className="block text-2xs text-chyba mt-0.5">
-                                nepoužívat: {t.nespravne}
-                              </span>
-                            )}
-                          </td>
-                          <td className="text-text">{t.termin_cs}</td>
-                          <td>
-                            <span
-                              className={
-                                t.zpusob === "přímý výskyt"
-                                  ? "odznak-akcent"
-                                  : "odznak-neutralni"
-                              }
-                            >
-                              {t.zpusob === "přímý výskyt" ? "v textu" : "významově"}
-                            </span>
-                          </td>
-                          <td>
-                            {!kontrola?.ocekavan ? (
-                              <span className="text-textSlaby text-xs">
-                                nevyžadováno
-                              </span>
-                            ) : kontrola.dodrzen ? (
-                              <span className="text-uspech">
-                                <Ikona.Fajfka velikost={15} />
-                              </span>
-                            ) : (
-                              <span className="text-chyba">
-                                <Ikona.Krizek velikost={15} />
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </Panel>
-          )}
-
-          {sGlosarem && (
-            <Panel
-              nadpis="Prompt předaný modelu"
-              popis="Systémová instrukce sestavená metodou RAG"
-              akce={
-                <button
-                  className="tlacitko-tichy text-xs"
-                  onClick={() => nastavZobrazitPrompt(!zobrazitPrompt)}
+                <Panel
+                  nadpis="Prompt předaný modelu"
+                  popis="Systémová instrukce sestavená metodou RAG"
+                  akce={
+                    sGlosarem.zpusob !== "glosář" && (
+                      <button
+                        className="tlacitko-tichy text-xs"
+                        onClick={() => nastavZobrazitPrompt(!zobrazitPrompt)}
+                      >
+                        {zobrazitPrompt ? "Skrýt" : "Zobrazit"}
+                      </button>
+                    )
+                  }
                 >
-                  {zobrazitPrompt ? "Skrýt" : "Zobrazit"}
-                </button>
-              }
-            >
-              {zobrazitPrompt ? (
-                <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-xs border border-obrys bg-plocha2 p-3.5 font-mono text-[0.7rem] leading-relaxed text-textTlumeny">
-                  {sGlosarem.systemova_instrukce}
-                </pre>
-              ) : (
-                <p className="text-sm text-textTlumeny">
-                  Systémová instrukce a překládaný text jsou modelu předány jako
-                  oddělené zprávy. Text je uzavřen do vymezeného bloku označeného
-                  za data, nikoli za instrukce — tím je omezeno riziko vložení
-                  cizího pokynu do vstupu (kap. 2.6.4).
-                </p>
+                  {sGlosarem.zpusob === "glosář" ? (
+                    <p className="text-sm text-textTlumeny">
+                      Vstup je přesně termínem firemního glosáře, překlad je proto
+                      převzat přímo z glosáře. Jazykový model nebyl volán a prompt
+                      se nesestavoval.
+                    </p>
+                  ) : zobrazitPrompt ? (
+                    <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-xs border border-obrys bg-plocha2 p-3.5 font-mono text-[0.7rem] leading-relaxed text-textTlumeny">
+                      {sGlosarem.systemova_instrukce}
+                    </pre>
+                  ) : (
+                    <p className="text-sm text-textTlumeny">
+                      Systémová instrukce a překládaný text jsou modelu předány jako
+                      oddělené zprávy. Text je uzavřen do vymezeného bloku označeného
+                      za data, nikoli za instrukce — tím je omezeno riziko vložení
+                      cizího pokynu do vstupu (kap. 2.6.4).
+                      {sGlosarem.zpusob === "krátký výraz" &&
+                        " Krátký vstup dostává stručnou instrukci bez příkladů, aby je model nezopakoval místo překladu."}
+                    </p>
+                  )}
+                </Panel>
               )}
-            </Panel>
+            </>
           )}
         </div>
       </div>
 
       {vykresli}
     </>
+  );
+}
+
+function TlacitkoUkazky({
+  text,
+  naVyber,
+}: {
+  text: string;
+  naVyber: (text: string) => void;
+}) {
+  return (
+    <button
+      className="w-full text-left rounded-xs border border-obrys bg-plocha2 px-3 py-2 text-[0.8125rem] leading-snug text-textTlumeny transition-colors hover:border-akcent hover:bg-akcentTlumeny hover:text-akcent"
+      onClick={() => naVyber(text)}
+    >
+      {text}
+    </button>
+  );
+}
+
+function PrekladDokumentu({
+  stav,
+  pracuje,
+  naKopirovani,
+  naStazeni,
+}: {
+  stav: StavDokumentu;
+  pracuje: boolean;
+  naKopirovani: (obsah: string) => void;
+  naStazeni: (obsah: string) => void;
+}) {
+  const hotovo = stav.hotovo;
+  const prelozeno = stav.useky.length;
+  const podil = stav.celkem ? prelozeno / stav.celkem : 0;
+  const zGlosare = stav.useky.filter((u) => u.zpusob === "glosář").length;
+  const nahled = hotovo
+    ? hotovo.preklad
+    : stav.useky.map((u) => u.odrazka + u.preklad).join("\n");
+
+  return (
+    <>
+      <Panel
+        nadpis="Překlad dokumentu"
+        popis={
+          hotovo
+            ? `${hotovo.pocet_useku} úseků · ${hotovo.doba_s.toFixed(1)} s · model ${hotovo.model}`
+            : pracuje
+              ? `Přeloženo ${prelozeno} z ${stav.celkem || "…"} úseků`
+              : `Přerušeno po ${prelozeno} z ${stav.celkem} úseků`
+        }
+        akce={
+          nahled && (
+            <div className="flex gap-2">
+              <button
+                className="tlacitko-vedlejsi text-xs"
+                onClick={() => naKopirovani(nahled)}
+              >
+                Kopírovat
+              </button>
+              <button
+                className="tlacitko-vedlejsi text-xs"
+                onClick={() => naStazeni(nahled)}
+              >
+                Stáhnout .txt
+              </button>
+            </div>
+          )
+        }
+      >
+        {!hotovo && (
+          <div className="ukazatel h-2 mb-3">
+            <div
+              className="ukazatel-vypln"
+              style={{ width: `${Math.max(podil * 100, pracuje ? 2 : 0)}%` }}
+            />
+          </div>
+        )}
+        {hotovo && (
+          <div className="flex flex-wrap items-center gap-1.5 mb-3">
+            <span
+              className={
+                hotovo.mira_dodrzeni_glosare >= 1 ? "odznak-uspech" : "odznak-chyba"
+              }
+            >
+              glosář{" "}
+              {hotovo.pocet_ocekavanych > 0
+                ? `${hotovo.pocet_dodrzenych}/${hotovo.pocet_ocekavanych} (${formatujProcenta(hotovo.mira_dodrzeni_glosare, 0)})`
+                : "—"}
+            </span>
+            <span
+              className={
+                hotovo.identifikatory_zachovany ? "odznak-uspech" : "odznak-chyba"
+              }
+            >
+              {hotovo.identifikatory_zachovany
+                ? "identifikátory zachovány"
+                : `ztraceno: ${hotovo.chybejici_identifikatory.join(", ")}`}
+            </span>
+            {zGlosare > 0 && (
+              <span
+                className="odznak-neutralni"
+                title="Úseky, které byly přesně termínem glosáře, se přeložily bez jazykového modelu."
+              >
+                {zGlosare}× přímo z glosáře
+              </span>
+            )}
+          </div>
+        )}
+        {nahled ? (
+          <pre className="max-h-[32rem] overflow-auto whitespace-pre-wrap font-sans text-sm text-text leading-relaxed">
+            {nahled}
+          </pre>
+        ) : (
+          <p className="text-sm text-textTlumeny">
+            Text se dělí na úseky; první úsek se překládá…
+          </p>
+        )}
+      </Panel>
+
+      {stav.useky.length > 0 && (
+        <Panel
+          nadpis="Úseky"
+          popis="Každý odstavec, nadpis a položka seznamu se překládá samostatně; odstavec se nedělí na věty, aby nepřišel o kontext."
+          bezOdsazeni
+        >
+          <div className="overflow-x-auto">
+            <table className="tabulka">
+              <thead>
+                <tr>
+                  <th className="w-8">#</th>
+                  <th>Zdroj</th>
+                  <th>Překlad</th>
+                  <th>Způsob</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stav.useky.map((u) => (
+                  <tr key={u.poradi}>
+                    <td className="font-mono text-2xs text-textSlaby">{u.poradi}</td>
+                    <td className="text-textTlumeny">{u.zdroj}</td>
+                    <td className="text-text">
+                      {u.preklad}
+                      {u.varovani.map((v, i) => (
+                        <span key={i} className="block text-2xs text-vystraha mt-0.5">
+                          {v}
+                        </span>
+                      ))}
+                    </td>
+                    <td>
+                      <span
+                        className={
+                          u.zpusob === "glosář" ? "odznak-uspech" : "odznak-neutralni"
+                        }
+                      >
+                        {popisZpusobu(u.zpusob)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Panel>
+      )}
+    </>
+  );
+}
+
+function TerminyGlosare({ vysledek }: { vysledek: VysledekPrekladu }) {
+  return (
+    <Panel
+      nadpis="Termíny vyhledané z glosáře"
+      popis={
+        vysledek.zpusob === "glosář"
+          ? "Vstup je přesně tímto termínem glosáře"
+          : `${vysledek.nalezene_terminy.length} termínů předaných modelu jako závazný kontext`
+      }
+      bezOdsazeni
+    >
+      <div className="overflow-x-auto">
+        <table className="tabulka">
+          <thead>
+            <tr>
+              <th>Termín ve zdroji</th>
+              <th>Závazný překlad</th>
+              <th>Nalezeno</th>
+              <th>Dodrženo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {vysledek.nalezene_terminy.map((t) => {
+              const kontrola = vysledek.validace.kontroly.find(
+                (k) => k.termin_zdroj === t.termin_en,
+              );
+              return (
+                <tr key={t.id}>
+                  <td>
+                    <span className="text-text">{t.termin_en}</span>
+                    {t.nespravne && (
+                      <span className="block text-2xs text-chyba mt-0.5">
+                        nepoužívat: {t.nespravne}
+                      </span>
+                    )}
+                  </td>
+                  <td className="text-text">{t.termin_cs}</td>
+                  <td>
+                    <span
+                      className={
+                        t.zpusob === "přímý výskyt"
+                          ? "odznak-akcent"
+                          : "odznak-neutralni"
+                      }
+                    >
+                      {t.zpusob === "přímý výskyt" ? "v textu" : "významově"}
+                    </span>
+                  </td>
+                  <td>
+                    {!kontrola?.ocekavan ? (
+                      <span className="text-textSlaby text-xs">nevyžadováno</span>
+                    ) : kontrola.dodrzen ? (
+                      <span className="text-uspech">
+                        <Ikona.Fajfka velikost={15} />
+                      </span>
+                    ) : (
+                      <span className="text-chyba">
+                        <Ikona.Krizek velikost={15} />
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Panel>
   );
 }
 
@@ -385,6 +797,7 @@ function VysledekPanelu({
 }) {
   const v = vysledek.validace;
   const okraj = barva === "uspech" ? "border-l-uspech" : "border-l-vystraha";
+  const zGlosare = vysledek.zpusob === "glosář";
 
   return (
     <section className={`panel border-l-[3px] ${okraj}`}>
@@ -394,12 +807,14 @@ function VysledekPanelu({
           <p className="text-xs text-textTlumeny mt-0.5">{popis}</p>
         </div>
         <span className="font-mono text-2xs text-textSlaby whitespace-nowrap">
-          {vysledek.doba_generovani_s.toFixed(1)} s
+          {zGlosare ? "bez modelu" : `${vysledek.doba_generovani_s.toFixed(1)} s`}
         </span>
       </header>
 
       <div className="p-4 space-y-3.5">
-        <p className="text-text leading-relaxed">{vysledek.preklad}</p>
+        <p className="text-text leading-relaxed whitespace-pre-wrap">
+          {vysledek.preklad}
+        </p>
 
         <div className="pt-3 border-t border-obrys space-y-2.5">
           <div className="flex items-center justify-between gap-3">
@@ -428,6 +843,22 @@ function VysledekPanelu({
           )}
 
           <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {zGlosare && (
+              <span
+                className="odznak-uspech"
+                title="Vstup je přesně termínem firemního glosáře; jazykový model nebyl volán."
+              >
+                přímo z glosáře
+              </span>
+            )}
+            {vysledek.zpusob === "krátký výraz" && (
+              <span
+                className="odznak-neutralni"
+                title="Slovo nebo krátký popisek se překládá stručnou instrukcí; větná pravidla by z něj udělala větu."
+              >
+                krátký výraz
+              </span>
+            )}
             <span
               className={
                 v.identifikatory_zachovany ? "odznak-uspech" : "odznak-chyba"

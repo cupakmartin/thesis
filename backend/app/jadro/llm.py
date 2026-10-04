@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -39,6 +40,8 @@ class PoskytovatelLLM(Protocol):
         uzivatelsky_vstup: str,
         temperature: float | None = None,
         model: str | None = None,
+        max_tokenu: int | None = None,
+        stop: Sequence[str] | None = None,
     ) -> OdpovedLLM: ...
 
 
@@ -89,6 +92,8 @@ class OllamaPoskytovatel:
         uzivatelsky_vstup: str,
         temperature: float | None = None,
         model: str | None = None,
+        max_tokenu: int | None = None,
+        stop: Sequence[str] | None = None,
     ) -> OdpovedLLM:
         pouzity_model = model or aktivni_model()
         pouzita_teplota = (
@@ -100,15 +105,20 @@ class OllamaPoskytovatel:
             {"role": "user", "content": obal_uzivatelsky_vstup(uzivatelsky_vstup)},
         ]
 
+        volby: dict[str, object] = {
+            "temperature": pouzita_teplota,
+            "num_predict": max_tokenu or self._nastaveni.max_tokenu_odpovedi,
+            "num_ctx": self._nastaveni.kontext_modelu,
+        }
+        if stop:
+            volby["stop"] = list(stop)
+
         cas_start = time.perf_counter()
         try:
             odpoved = self._ziskej_klienta().chat(
                 model=pouzity_model,
                 messages=zpravy,
-                options={
-                    "temperature": pouzita_teplota,
-                    "num_predict": self._nastaveni.max_tokenu_odpovedi,
-                },
+                options=volby,
             )
         except Exception as chyba:
             raise ChybaLLM(
@@ -132,6 +142,7 @@ class StubPoskytovatel:
     def __init__(self, odpovedi: dict[str, str] | None = None) -> None:
         self._odpovedi = odpovedi or {}
         self.zaznamenane_vstupy: list[tuple[str, str]] = []
+        self.zaznamenane_parametry: list[dict[str, object]] = []
 
     @property
     def nazev_modelu(self) -> str:
@@ -149,8 +160,13 @@ class StubPoskytovatel:
         uzivatelsky_vstup: str,
         temperature: float | None = None,
         model: str | None = None,
+        max_tokenu: int | None = None,
+        stop: Sequence[str] | None = None,
     ) -> OdpovedLLM:
         self.zaznamenane_vstupy.append((systemova_instrukce, uzivatelsky_vstup))
+        self.zaznamenane_parametry.append(
+            {"max_tokenu": max_tokenu, "stop": list(stop or []), "model": model}
+        )
         for klic, hodnota in self._odpovedi.items():
             if klic in uzivatelsky_vstup:
                 return OdpovedLLM(text=hodnota, model="stub", doba_s=0.0)

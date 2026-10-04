@@ -5,6 +5,9 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.jadro.dokument import MAX_ZNAKU_DOKUMENTU
+from app.jadro.rag import MAX_ZNAKU_JEDNOHO_PREKLADU
+
 class OdpovedSeStrankovanim(BaseModel):
     polozky: list[dict[str, Any]]
     celkem: int
@@ -60,13 +63,25 @@ class PozadavekRozhodnuti(BaseModel):
     kdo: str = "neznámý"
 
 class PozadavekPrekladuAPI(BaseModel):
-    text: str = Field(min_length=1)
+    text: str = Field(
+        min_length=1,
+        max_length=MAX_ZNAKU_JEDNOHO_PREKLADU,
+        description="Delší text se překládá jako dokument (/preklad/dokument).",
+    )
     zdrojovy_jazyk: str = "en"
     cilovy_jazyk: str = "cs"
     pouzit_glosar: bool = True
     model: str | None = None
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     itemnum: str | None = None
+    kdo: str = "neznámý"
+
+class PozadavekDokumentuAPI(BaseModel):
+    text: str = Field(min_length=1, max_length=MAX_ZNAKU_DOKUMENTU)
+    zdrojovy_jazyk: str = "en"
+    cilovy_jazyk: str = "cs"
+    pouzit_glosar: bool = True
+    model: str | None = None
     kdo: str = "neznámý"
 
 class PolozkaGlosareAPI(BaseModel):
