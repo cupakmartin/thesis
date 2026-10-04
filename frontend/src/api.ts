@@ -152,7 +152,77 @@ export interface Polozka {
   change_by: string | null;
   stav_konsolidace: string;
   slouceno_do: string | null;
+  data: Record<string, string>;
   zarazeni_iso?: ZarazeniIso | null;
+}
+
+export interface SloupecKatalogu {
+  nazev: string;
+  role: string;
+  jazyk: string;
+  puvodni: string;
+  index: number;
+}
+
+export interface StavKatalogu {
+  existuje: boolean;
+  pocet_behu: number;
+  nazev_souboru?: string;
+  zdroj?: string;
+  importovano?: string;
+  kdo?: string | null;
+  sloupce?: SloupecKatalogu[];
+  nastaveni?: {
+    ma_id: boolean;
+    vicejazycny: string;
+    mapa_jazyku: Record<string, string>;
+    jazyk_katalogu: string;
+  };
+  pocet_polozek?: number;
+  preskoceno?: number;
+}
+
+export interface NavrhSloupce {
+  index: number;
+  puvodni: string;
+  navrh_role: string;
+  navrh_jazyk: string;
+  priklady: string[];
+  hodnoty: string[] | null;
+  unikatni: boolean;
+  prazdnych: number;
+}
+
+export interface NahledCsv {
+  token: string;
+  nazev_souboru: string;
+  kodovani: string;
+  oddelovac: string;
+  pocet_radku: number;
+  radku_s_prebytkem: number;
+  sloupce: NavrhSloupce[];
+  navrh: {
+    ma_id: boolean;
+    vicejazycny: string;
+    mapa_jazyku: Record<string, string>;
+  };
+}
+
+export interface ImportKatalogu {
+  token: string;
+  sloupce: { index: number; nazev: string; role: string; jazyk: string }[];
+  ma_id: boolean;
+  vicejazycny: string;
+  mapa_jazyku: Record<string, string>;
+  jazyk_katalogu: string;
+}
+
+export interface VysledekImportu {
+  pocet_polozek: number;
+  preskoceno: number;
+  pocet_sloupcu: number;
+  nazev_souboru: string;
+  smazano: { polozek: number; behu: number; udalosti: number };
 }
 
 export interface ZarazeniIso {
@@ -240,14 +310,20 @@ export interface VysledekKontroly {
 
 export interface NalezenyTermin {
   id: string;
-  termin_en: string;
-  termin_cs: string;
+  termin_zdroj: string;
+  termin_cil: string;
+  cil_neoveren: boolean;
   definice: string;
   nespravne: string;
   kategorie: string;
   zdroj: string;
   zpusob: string;
   skore: number;
+}
+
+export interface Jazyk {
+  kod: string;
+  nazev: string;
 }
 
 export interface KontrolaTerminu {
@@ -286,6 +362,18 @@ export interface VysledekPrekladu {
   systemova_instrukce: string;
   nalezene_terminy: NalezenyTermin[];
   validace: Validace;
+}
+
+export interface StavNacitani {
+  llm: {
+    model: string;
+    stav: "nacita" | "pripraven" | "nenacten" | "nedostupny";
+    chyba: string | null;
+  };
+  embedding: {
+    model: string;
+    stav: "nacita" | "pripraven" | "nenacten";
+  };
 }
 
 export interface TextZPdf {
@@ -330,13 +418,34 @@ export type UdalostDokumentu =
 
 export interface TerminGlosare {
   id: string;
-  termin_en: string;
-  termin_cs: string;
+  terminy: Record<string, string>;
+  nespravne: Record<string, string>;
+  strojove: string[];
+  chybejici: string[];
   kategorie: string;
   definice: string;
-  nespravne: string;
   zdroj: string;
 }
+
+export interface UpravaTerminu {
+  terminy: Record<string, string>;
+  kategorie: string;
+  definice: string;
+  nespravne: Record<string, string>;
+  overene?: string[];
+}
+
+export interface StavGlosare {
+  celkem: number;
+  k_doplneni: number;
+  neovereno: number;
+}
+
+export type UdalostDoplneni =
+  | { typ: "plan"; pocet: number }
+  | { typ: "termin"; poradi: number; id: string; doplneno: string[]; polozka: TerminGlosare }
+  | { typ: "hotovo"; pocet: number }
+  | { typ: "chyba"; zprava: string };
 
 
 export interface UdalostMIF {
@@ -389,17 +498,41 @@ export const api = {
     volbaModelu: () => ziskej<StavVolbyModelu>("/system/model"),
     zmenModel: (model: string | null) =>
       uprav<StavVolbyModelu>("/system/model", { model }),
+    nacitani: () => ziskej<StavNacitani>("/system/nacitani"),
+    jazyky: () => ziskej<Jazyk[]>("/system/jazyky"),
+    nactiModely: () => posli<StavNacitani>("/system/nacitani"),
   },
 
   polozky: {
     seznam: (f: Record<string, unknown>) =>
       ziskej<Strankovani<Polozka>>(`/polozky${parametry(f)}`),
-    detail: (itemnum: string) => ziskej<Polozka>(`/polozky/${itemnum}`),
+    detail: (itemnum: string) =>
+      ziskej<Polozka>(`/polozky/${encodeURIComponent(itemnum)}`),
     filtry: () =>
       ziskej<Record<string, string[]>>("/polozky/filtry"),
     importuj: () => posli<Potvrzeni>("/polozky/import", {}),
     xml: (itemnum: string) =>
-      fetch(`${ZAKLAD}/polozky/${itemnum}/xml`).then((o) => o.text()),
+      fetch(`${ZAKLAD}/polozky/${encodeURIComponent(itemnum)}/xml`).then((o) => o.text()),
+  },
+
+  katalog: {
+    stav: () => ziskej<StavKatalogu>("/katalog"),
+    nahled: async (
+      soubor: File,
+      volby: { kodovani?: string; oddelovac?: string } = {},
+    ): Promise<NahledCsv> => {
+      const odpoved = await odesli(
+        `/katalog/nahled${parametry({ nazev: soubor.name, ...volby })}`,
+        { method: "POST", headers: { "Content-Type": "text/csv" }, body: soubor },
+      );
+      return (await odpoved.json()) as NahledCsv;
+    },
+    importovat: (telo: ImportKatalogu) =>
+      posli<VysledekImportu>("/katalog/import", telo),
+    generovat: (pocet: number) =>
+      posli<VysledekImportu>("/katalog/generovat", { pocet }),
+    smazat: () =>
+      smaz<{ polozek: number; behu: number; udalosti: number }>("/katalog"),
   },
 
   deduplikace: {
@@ -493,11 +626,18 @@ export const api = {
     seznam: (f: Record<string, unknown>) =>
       ziskej<Strankovani<TerminGlosare>>(`/glosar${parametry(f)}`),
     kategorie: () => ziskej<string[]>("/glosar/kategorie"),
-    pridat: (telo: Partial<TerminGlosare>) =>
-      posli<Potvrzeni>("/glosar", telo),
-    upravit: (id: string, telo: Partial<TerminGlosare>) =>
-      uprav<Potvrzeni>(`/glosar/${id}`, telo),
+    stav: () => ziskej<StavGlosare>("/glosar/stav"),
+    pridat: (telo: UpravaTerminu) => posli<TerminGlosare>("/glosar", telo),
+    upravit: (id: string, telo: UpravaTerminu) =>
+      uprav<TerminGlosare>(`/glosar/${id}`, telo),
     smazat: (id: string) => smaz<Potvrzeni>(`/glosar/${id}`),
+    doplnitJazyky: async (
+      naUdalost: (udalost: UdalostDoplneni) => void,
+      signal?: AbortSignal,
+    ) => {
+      const odpoved = await odesli("/glosar/doplnit-jazyky", { method: "POST", signal });
+      await ctiUdalosti(odpoved, naUdalost);
+    },
   },
 
   mif: {

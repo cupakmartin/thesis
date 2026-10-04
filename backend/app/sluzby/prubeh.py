@@ -159,8 +159,8 @@ def prubeh_prekladu(
         terminy=[
             {
                 "id": n.polozka.id,
-                "en": n.polozka.termin_en,
-                "cs": n.polozka.termin_cs,
+                "zdroj": n.polozka.termin(zdrojovy_jazyk),
+                "cil": n.polozka.termin(cilovy_jazyk),
                 "skore": round(float(n.skore), 4),
                 "zpusob": n.zpusob,
                 "je_primy": n.je_primy,

@@ -175,8 +175,8 @@ export default function Vizualizace() {
         <div className="space-y-4">
           <Panel nadpis="Jak číst tento obrázek">
             <p className="text-sm text-textTlumeny leading-relaxed">
-              Každý bod je jedna položka katalogu, barva označuje komoditní
-              skupinu. Body ležící blízko sebe mají podobný význam popisu.
+              Každý bod je jedna položka katalogu, barva označuje hodnotu
+              sloupce „{projekce.data?.barva_podle ?? "skupina"}“. Body ležící blízko sebe mají podobný význam popisu.
               Vzniká-li pro každou skupinu souvislá oblast, znamená to, že model
               zachycuje význam textu — a právě na tom stojí schopnost rozpoznat
               duplicitu napříč jazyky.
@@ -292,6 +292,7 @@ async function zavolejProjekci(metoda: string, vzorek: number) {
     metoda: string;
     pocet: number;
     vysvetlena_variance: number[] | null;
+    barva_podle?: string;
     body: Bod[];
   };
 }

@@ -3,6 +3,7 @@ import { Fragment, useCallback, useState } from "react";
 import { api, type StavSystemu } from "./api";
 import { PoskytovatelKontroly, useKontrolaModelu } from "./KontrolaModelu";
 import { useNacti } from "./hooky";
+import { UkazatelNacitani } from "./UkazatelNacitani";
 
 import Prehled from "./obrazovky/Prehled";
 import Katalog from "./obrazovky/Katalog";
@@ -34,6 +35,11 @@ const NAVIGACE: { cesta: string; nazev: string; skupina: string }[] = [
 
 export default function App() {
   const stav = useNacti(() => api.system.stav(), []);
+  const [podnet, nastavPodnet] = useState(0);
+  const poZmeneModelu = useCallback(() => {
+    stav.obnov();
+    nastavPodnet((n) => n + 1);
+  }, [stav]);
 
   return (
     <PoskytovatelKontroly>
@@ -63,7 +69,8 @@ export default function App() {
             </nav>
 
             <div className="ml-auto flex flex-wrap items-center gap-2">
-              <VolbaModelu stav={stav.data} onZmena={stav.obnov} />
+              <UkazatelNacitani podnet={podnet} />
+              <VolbaModelu stav={stav.data} onZmena={poZmeneModelu} />
               {stav.data && <UkazatelModelu stav={stav.data} />}
             </div>
           </div>

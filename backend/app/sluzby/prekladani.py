@@ -11,6 +11,7 @@ from typing import Any
 from app.db import nyni, pripoj
 from app.jadro.dokument import rozdel_na_useky, sestav_preklad
 from app.jadro.glosar import Glosar, NalezenyTermin, glosar
+from app.jadro.jazyky import jazyk
 from app.jadro.rag import (
     ZPUSOB_GLOSAR,
     PozadavekPrekladu,
@@ -69,6 +70,8 @@ class SluzbaPrekladu:
         model: str | None = None,
         kdo: str = "systém",
     ) -> Iterator[dict[str, Any]]:
+        jazyk(zdrojovy_jazyk)
+        jazyk(cilovy_jazyk)
         if zdrojovy_jazyk == cilovy_jazyk:
             raise ValueError("Zdrojový a cílový jazyk se musí lišit.")
         useky = rozdel_na_useky(text)
@@ -163,8 +166,8 @@ class SluzbaPrekladu:
         terminy = [
             {
                 "id": n.polozka.id,
-                "termin_en": n.polozka.termin_en,
-                "termin_cs": n.polozka.termin_cs,
+                "termin_zdroj": n.polozka.termin(vysledek.zdrojovy_jazyk),
+                "termin_cil": n.polozka.termin(vysledek.cilovy_jazyk),
                 "zpusob": n.zpusob,
                 "skore": round(n.skore, 4),
             }

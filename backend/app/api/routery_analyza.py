@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from app.config import nastaveni
+from app.sluzby.import_katalogu import metadata
 from app.sluzby.katalog import sluzba_katalogu
 
 logger = logging.getLogger(__name__)
@@ -61,11 +62,21 @@ def projekce(
     rozsah = float(np.abs(souradnice).max()) or 1.0
     souradnice = souradnice / rozsah
 
+    ma_skupiny = any(z.komoditni_skupina for z in zaznamy)
+    sloupce = (metadata() or {}).get("sloupce", [])
+    barva_podle = (
+        next((s["nazev"] for s in sloupce if s["role"] == "skupina"), "Skupina")
+        if ma_skupiny else "Třída ISO 14224"
+    )
+
     body = [
         {
             "itemnum": zaznamy[int(i)].itemnum,
             "popis": zaznamy[int(i)].popis,
-            "skupina": zaznamy[int(i)].komoditni_skupina,
+            "skupina": (
+                zaznamy[int(i)].komoditni_skupina if ma_skupiny
+                else zaznamy[int(i)].iso_trida or "nezařazeno"
+            ),
             "trida": zaznamy[int(i)].iso_trida,
             "x": round(float(souradnice[poradi, 0]), 4),
             "y": round(float(souradnice[poradi, 1]), 4),
@@ -77,6 +88,7 @@ def projekce(
         "metoda": metoda,
         "pocet": len(body),
         "vysvetlena_variance": vysvetlena_variance,
+        "barva_podle": barva_podle,
         "body": body,
     }
 

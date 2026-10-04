@@ -224,7 +224,7 @@ class TestGlosar:
     def test_hledani(self, klient):
         odpoved = klient.get("/api/glosar?hledany_text=impeller")
         polozky = odpoved.json()["polozky"]
-        assert any(p["termin_cs"] == "oběžné kolo" for p in polozky)
+        assert any(p["terminy"].get("cs") == "oběžné kolo" for p in polozky)
 
     def test_kategorie(self, klient):
         assert len(klient.get("/api/glosar/kategorie").json()) > 0

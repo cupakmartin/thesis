@@ -52,13 +52,16 @@ class Nastaveni(BaseSettings):
     prisne_shlukovani: bool = True
 
     ollama_url: str = "http://localhost:11434"
-    model_llm: str = "gemma2:9b"
+    model_llm: str = "translategemma:12b"
 
     temperature: float = Field(default=0.1, ge=0.0, le=2.0)
     max_tokenu_odpovedi: int = 2048
     kontext_modelu: int = Field(default=4096, ge=2048)
+    predehrat_modely: bool = True
+    udrzet_model_v_pameti: str = "30m"
 
     modely_pro_benchmark: list[str] = [
+        "translategemma:12b",
         "mistral:7b",
         "qwen2.5:7b",
         "llama3.1:8b",

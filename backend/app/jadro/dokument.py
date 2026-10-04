@@ -25,7 +25,7 @@ SLOVO = re.compile(r"\b[^\W\d_]{2,}\b")
 
 
 class ChybaDokumentu(ValueError):
-    """Dokument nelze zpracovat."""
+    pass
 
 
 @dataclass(frozen=True)

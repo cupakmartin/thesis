@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, type VysledekKontroly } from "../api";
-import { useOdlozeno } from "../hooky";
+import { useNacti, useOdlozeno } from "../hooky";
 import {
   ChybovyStav,
   Ikona,
@@ -37,6 +37,13 @@ export default function KontrolaPolozky() {
   const [nacita, nastavNacita] = useState(false);
   const [chyba, nastavChybu] = useState<string | null>(null);
   const [automaticky, nastavAutomaticky] = useState(true);
+  const katalog = useNacti(() => api.katalog.stav(), []);
+  const filtry = useNacti(() => api.polozky.filtry(), []);
+  const sloupecSkupiny = katalog.data?.sloupce?.find((s) => s.role === "skupina");
+  const hodnotySkupiny = filtry.data?.komoditni_skupiny ?? [];
+  const prikladSkupiny = hodnotySkupiny[0] ?? "";
+  const velkymiPismeny =
+    hodnotySkupiny.length > 0 && hodnotySkupiny.every((h) => h === h.toUpperCase());
 
   const popisOdlozeny = useOdlozeno(popis, 550);
 
@@ -102,18 +109,28 @@ export default function KontrolaPolozky() {
                 </p>
               </div>
 
-              <div>
-                <label className="stitek-pole" htmlFor="skupina-polozky">
-                  Komoditní skupina (nepovinné)
-                </label>
-                <input
-                  id="skupina-polozky"
-                  className="pole"
-                  placeholder="například: BEARINGS"
-                  value={skupina}
-                  onChange={(e) => nastavSkupinu(e.target.value.toUpperCase())}
-                />
-              </div>
+              {sloupecSkupiny && (
+                <div>
+                  <label className="stitek-pole" htmlFor="skupina-polozky">
+                    {sloupecSkupiny.nazev} (nepovinné)
+                  </label>
+                  <input
+                    id="skupina-polozky"
+                    className="pole"
+                    list="hodnoty-skupiny"
+                    placeholder={prikladSkupiny ? `například: ${prikladSkupiny}` : undefined}
+                    value={skupina}
+                    onChange={(e) =>
+                      nastavSkupinu(velkymiPismeny ? e.target.value.toUpperCase() : e.target.value)
+                    }
+                  />
+                  <datalist id="hodnoty-skupiny">
+                    {hodnotySkupiny.map((h) => (
+                      <option key={h} value={h} />
+                    ))}
+                  </datalist>
+                </div>
+              )}
 
               <div className="flex items-center justify-between gap-3 pt-1">
                 <label className="flex items-center gap-2 text-sm text-textTlumeny cursor-pointer">

@@ -23,6 +23,7 @@ class SpravceEmbeddingu:
     def __init__(self, konfigurace: Nastaveni | None = None) -> None:
         self._nastaveni = konfigurace or nastaveni()
         self._model = None
+        self._nacita = False
         self._zamek = threading.Lock()
         self._cache: dict[str, np.ndarray] = {}
         self._cache_nactena = False
@@ -45,14 +46,27 @@ class SpravceEmbeddingu:
                 os.environ.setdefault("HF_HUB_OFFLINE", "1")
             os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
 
-            from sentence_transformers import SentenceTransformer
+            self._nacita = True
+            try:
+                from sentence_transformers import SentenceTransformer
 
-            logger.info("Načítám embedding model %s", self._nastaveni.model_embeddingu)
-            self._model = SentenceTransformer(
-                self._nastaveni.model_embeddingu,
-                device=self._nastaveni.zarizeni_embeddingu,
-            )
+                logger.info("Načítám embedding model %s", self._nastaveni.model_embeddingu)
+                self._model = SentenceTransformer(
+                    self._nastaveni.model_embeddingu,
+                    device=self._nastaveni.zarizeni_embeddingu,
+                )
+            finally:
+                self._nacita = False
             return self._model
+
+    def nacti_model(self) -> None:
+        self._nacti_model()
+
+    @property
+    def stav(self) -> str:
+        if self._model is not None:
+            return "pripraven"
+        return "nacita" if self._nacita else "nenacten"
 
     @property
     def dimenze(self) -> int:

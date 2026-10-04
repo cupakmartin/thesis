@@ -4,7 +4,7 @@ from __future__ import annotations
 import csv
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -12,6 +12,7 @@ import numpy as np
 from app.config import Nastaveni, nastaveni
 from app.jadro.embeddingy import SpravceEmbeddingu, spravce_embeddingu
 from app.jadro.index_faiss import VektorovyIndex
+from app.jadro.jazyky import KODY_JAZYKU, obsahuje_cjk
 from app.jadro.normalizace import normalizuj_pro_embedding, odstran_diakritiku
 
 logger = logging.getLogger(__name__)
@@ -20,22 +21,100 @@ ZPUSOB_PRIMY = "přímý výskyt"
 ZPUSOB_VEKTOROVY = "vektorové vyhledávání"
 
 
-@dataclass
-class PolozkaGlosare:
+def _ocisti(hodnoty: dict[str, str] | None) -> dict[str, str]:
+    return {
+        k: v.strip()
+        for k, v in (hodnoty or {}).items()
+        if k in KODY_JAZYKU and v and v.strip()
+    }
 
-    id: str
-    termin_en: str
-    termin_cs: str
-    kategorie: str = ""
-    definice: str = ""
-    nespravne: str = ""
-    zdroj: str = "firemní glosář"
+
+class PolozkaGlosare:
+    def __init__(
+        self,
+        id: str,
+        termin_en: str = "",
+        termin_cs: str = "",
+        kategorie: str = "",
+        definice: str = "",
+        nespravne: str = "",
+        zdroj: str = "firemní glosář",
+        terminy: dict[str, str] | None = None,
+        nespravne_podle_jazyka: dict[str, str] | None = None,
+        strojove: set[str] | None = None,
+    ) -> None:
+        self.id = id
+        self.terminy = _ocisti(terminy)
+        if termin_en.strip():
+            self.terminy["en"] = termin_en.strip()
+        if termin_cs.strip():
+            self.terminy["cs"] = termin_cs.strip()
+        self.nespravne_podle_jazyka = _ocisti(nespravne_podle_jazyka)
+        if nespravne.strip():
+            self.nespravne_podle_jazyka["cs"] = nespravne.strip()
+        self.kategorie = kategorie
+        self.definice = definice
+        self.zdroj = zdroj
+        self.strojove = {k for k in (strojove or set()) if k in self.terminy}
+
+    def __eq__(self, jina: object) -> bool:
+        if not isinstance(jina, PolozkaGlosare):
+            return NotImplemented
+        return vars(self) == vars(jina)
+
+    def __repr__(self) -> str:
+        return f"PolozkaGlosare(id={self.id!r}, terminy={self.terminy!r})"
 
     def termin(self, jazyk: str) -> str:
-        return self.termin_en if jazyk == "en" else self.termin_cs
+        return self.terminy.get(jazyk, "")
+
+    def nespravne_v(self, jazyk: str) -> str:
+        return self.nespravne_podle_jazyka.get(jazyk, "")
+
+    @property
+    def jazyky(self) -> list[str]:
+        return [k for k in KODY_JAZYKU if k in self.terminy]
+
+    @property
+    def termin_en(self) -> str:
+        return self.termin("en")
+
+    @termin_en.setter
+    def termin_en(self, hodnota: str) -> None:
+        self.nastav_termin("en", hodnota)
+
+    @property
+    def termin_cs(self) -> str:
+        return self.termin("cs")
+
+    @termin_cs.setter
+    def termin_cs(self, hodnota: str) -> None:
+        self.nastav_termin("cs", hodnota)
+
+    @property
+    def nespravne(self) -> str:
+        return self.nespravne_v("cs")
+
+    @nespravne.setter
+    def nespravne(self, hodnota: str) -> None:
+        if hodnota.strip():
+            self.nespravne_podle_jazyka["cs"] = hodnota.strip()
+        else:
+            self.nespravne_podle_jazyka.pop("cs", None)
+
+    def nastav_termin(self, jazyk: str, hodnota: str, strojove: bool = False) -> None:
+        if hodnota.strip():
+            self.terminy[jazyk] = hodnota.strip()
+            if strojove:
+                self.strojove.add(jazyk)
+            else:
+                self.strojove.discard(jazyk)
+        else:
+            self.terminy.pop(jazyk, None)
+            self.strojove.discard(jazyk)
 
     def jako_dokument(self) -> str:
-        casti = [self.termin_en, self.termin_cs]
+        casti = [self.terminy[k] for k in self.jazyky]
         if self.definice:
             casti.append(self.definice)
         return " | ".join(casti)
@@ -75,15 +154,7 @@ class Glosar:
 
         with cilova_cesta.open(encoding="utf-8") as soubor:
             self._polozky = [
-                PolozkaGlosare(
-                    id=radek["ID"],
-                    termin_en=radek["TERMIN_EN"].strip(),
-                    termin_cs=radek["TERMIN_CS"].strip(),
-                    kategorie=radek.get("KATEGORIE", ""),
-                    definice=radek.get("DEFINICE", ""),
-                    nespravne=radek.get("NESPRAVNE", ""),
-                    zdroj=radek.get("ZDROJ", ""),
-                )
+                _polozka_z_radku(radek)
                 for radek in csv.DictReader(soubor, delimiter=";")
             ]
 
@@ -99,23 +170,25 @@ class Glosar:
         with cilova_cesta.open("w", encoding="utf-8", newline="") as soubor:
             zapisovac = csv.writer(soubor, delimiter=";", quoting=csv.QUOTE_MINIMAL)
             zapisovac.writerow(
-                ["ID", "TERMIN_EN", "TERMIN_CS", "KATEGORIE", "DEFINICE", "NESPRAVNE", "ZDROJ"]
+                ["ID", "KATEGORIE", "DEFINICE", "ZDROJ"]
+                + [f"TERMIN_{k.upper()}" for k in KODY_JAZYKU]
+                + [f"NESPRAVNE_{k.upper()}" for k in KODY_JAZYKU]
+                + ["STROJOVE"]
             )
             for p in self._polozky:
-                zapisovac.writerow([
-                    p.id, p.termin_en, p.termin_cs, p.kategorie,
-                    p.definice, p.nespravne, p.zdroj,
-                ])
+                zapisovac.writerow(
+                    [p.id, p.kategorie, p.definice, p.zdroj]
+                    + [p.termin(k) for k in KODY_JAZYKU]
+                    + [p.nespravne_v(k) for k in KODY_JAZYKU]
+                    + [",".join(k for k in KODY_JAZYKU if k in p.strojove)]
+                )
 
     def _sestav_mapu_tvaru(self) -> None:
-
         self._podle_tvaru = {}
         for poradi, polozka in enumerate(self._polozky):
-            for tvar in (polozka.termin_en, polozka.termin_cs):
-                if not tvar:
-                    continue
+            for tvar in polozka.terminy.values():
                 klic = odstran_diakritiku(tvar).lower().strip()
-                if klic:
+                if klic and poradi not in self._podle_tvaru.get(klic, []):
                     self._podle_tvaru.setdefault(klic, []).append(poradi)
 
     def zaindexuj(self) -> None:
@@ -134,12 +207,16 @@ class Glosar:
     def _najdi_prime_vyskyty(self, text: str) -> list[tuple[int, float]]:
         normalizovany = odstran_diakritiku(text).lower()
 
-        vyskyty: list[tuple[int, int, int, str]] = []  # (zacatek, konec, poradi, tvar)
+        vyskyty: list[tuple[int, int, int, str]] = []
         for tvar, indexy in self._podle_tvaru.items():
-            if len(tvar) < 3:
-                continue
-
-            vzor = r"\b" + re.escape(tvar) + r"\w{0,3}\b"
+            if obsahuje_cjk(tvar):
+                if len(tvar) < 2:
+                    continue
+                vzor = re.escape(tvar)
+            else:
+                if len(tvar) < 3:
+                    continue
+                vzor = r"\b" + re.escape(tvar) + r"\w{0,3}\b"
             for shoda in re.finditer(vzor, normalizovany):
                 for poradi in indexy:
                     vyskyty.append((shoda.start(), shoda.end(), poradi, tvar))
@@ -229,6 +306,10 @@ class Glosar:
         self._sestav_mapu_tvaru()
         self._index = None
 
+    def prepocitej(self) -> None:
+        self._sestav_mapu_tvaru()
+        self._index = None
+
     def uprav(self, id_polozky: str, **zmeny: str) -> bool:
         for polozka in self._polozky:
             if polozka.id == id_polozky:
@@ -262,6 +343,23 @@ class Glosar:
     @property
     def velikost(self) -> int:
         return len(self._polozky)
+
+def _polozka_z_radku(radek: dict[str, str]) -> PolozkaGlosare:
+    terminy = {k: radek.get(f"TERMIN_{k.upper()}") or "" for k in KODY_JAZYKU}
+    nespravne = {k: radek.get(f"NESPRAVNE_{k.upper()}") or "" for k in KODY_JAZYKU}
+    if radek.get("NESPRAVNE"):
+        nespravne["cs"] = radek["NESPRAVNE"]
+    strojove = {k.strip() for k in (radek.get("STROJOVE") or "").split(",") if k.strip()}
+    return PolozkaGlosare(
+        id=radek["ID"],
+        kategorie=radek.get("KATEGORIE") or "",
+        definice=radek.get("DEFINICE") or "",
+        zdroj=radek.get("ZDROJ") or "",
+        terminy=terminy,
+        nespravne_podle_jazyka=nespravne,
+        strojove=strojove,
+    )
+
 
 _sdileny_glosar: Glosar | None = None
 

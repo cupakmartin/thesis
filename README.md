@@ -10,7 +10,9 @@ Tento repozitář obsahuje aplikaci k mé bakalářské práci **Využití AI na
 
 V katalogu se může stejný díl objevit několikrát: pod jiným názvem, v jiném jazyce nebo s odlišným kódem. Aplikace hledá takové položky pomocí významové podobnosti textu a lexikálního porovnání. Návrhy na sloučení lze posoudit, schválit a následně také zrušit.
 
-Druhou částí je překlad technických popisů. Před překladem aplikace vyhledá související termíny ve firemním glosáři a předá je jazykovému modelu jako kontext. Tento postup, označovaný jako Retrieval-Augmented Generation (RAG), má omezit situace, kdy model přeloží stejný odborný termín pokaždé jinak.
+Katalog lze na obrazovce *Katalog* vygenerovat jako testovací, nebo importovat z vlastního souboru CSV s libovolnými sloupci. Při importu se určí, který sloupec nese ID, popis, jazyk a případně skupinu; ostatní sloupce se převezmou beze změny. Aktivní je vždy jeden katalog.
+
+Druhou částí je překlad technických textů mezi angličtinou, češtinou, němčinou, italštinou, španělštinou, francouzštinou, čínštinou a japonštinou — od jednotlivých slov po celé pracovní postupy včetně obsahu PDF. Před překladem aplikace vyhledá související termíny ve firemním glosáři a předá je jazykovému modelu jako kontext. Tento postup, označovaný jako Retrieval-Augmented Generation (RAG), má omezit situace, kdy model přeloží stejný odborný termín pokaždé jinak. Termín se do glosáře zadává alespoň ve dvou jazycích, ostatní doplní jazykový model a označí je jako neověřené.
 
 Na obrazovce *Průběh zpracování* je možné prohlédnout jednotlivé kroky překladu, nalezené termíny, sestavený prompt i původní odpověď modelu.
 
@@ -31,7 +33,7 @@ Node.js je potřeba pouze při úpravách uživatelského rozhraní. Sestavené 
 ```powershell
 python -m venv .venv
 .venv\Scripts\python.exe -m pip install -r requirements.txt
-ollama pull gemma2:9b
+ollama pull translategemma:12b
 ```
 
 ### 2. Příprava dat
@@ -41,7 +43,7 @@ ollama pull gemma2:9b
 .venv\Scripts\python.exe backend\skripty\generuj_glosar.py
 ```
 
-První skript vytvoří katalog 5 000 položek a referenční data pro vyhodnocení duplicit (*ground truth*). Druhý připraví glosář včetně terminologie ISO 14224. Oba stačí spustit před prvním použitím aplikace.
+První skript vytvoří katalog 5 000 položek a referenční data pro vyhodnocení duplicit (*ground truth*). Druhý připraví glosář včetně terminologie ISO 14224. Oba výstupy jsou součástí repozitáře, takže tento krok není nutný; katalog lze navíc vygenerovat nebo importovat přímo v aplikaci.
 
 ### 3. Spuštění aplikace
 
@@ -67,7 +69,7 @@ Jazykový model běží přes Ollamu, embedding model je uložen v adresáři pr
 
 Aplikace nevyžaduje placené API ani předplatné. Nároky na vlastní hardware a dobu zpracování ale zůstávají.
 
-Výchozí jazykový model je `gemma2:9b` — ze čtyř srovnaných modelů nejspolehlivěji překládá samostatná slova (39 z 51 běžných slov proti 25 u `mistral:7b`). Jiný model lze stáhnout například takto:
+Výchozí jazykový model je `translategemma:12b`, model Gemma 3 doladěný pro překlad mezi 55 jazyky. Samostatná slova překládá správně v 50 z 51 případů (`gemma2:9b` 39, `mistral:7b` 25) a s glosářem dodrží 92 % závazných termínů. Potřebuje přibližně 10 GB paměti; na slabším počítači lze použít `translategemma:4b`. Jiný model lze stáhnout například takto:
 
 ```powershell
 ollama pull qwen2.5:7b
@@ -102,7 +104,7 @@ Moduly v `backend/app/jadro/` lze používat i samostatně, bez webového rozhra
 
 Backend používá FastAPI, Uvicorn a SQLite. Významové porovnání zajišťuje `sentence-transformers` s modelem LaBSE (768 dimenzí) a indexem HNSW v `faiss-cpu`; lexikální porovnání používá `rapidfuzz`. Překlad běží přes Ollamu, s využitím `langchain-core`.
 
-Rozhraní je napsané v Reactu a TypeScriptu, sestavuje se pomocí Vite a používá Tailwind CSS a Recharts. Pro projekce vektorů pomocí PCA a t-SNE slouží `scikit-learn`, pro přípravu podkladů k textu práce `python-docx`.
+Rozhraní je napsané v Reactu a TypeScriptu, sestavuje se pomocí Vite a používá Tailwind CSS a Recharts. Pro projekce vektorů pomocí PCA a t-SNE slouží `scikit-learn`, pro vytěžení textu z PDF `pypdf`.
 
 ## Vývoj a testování
 

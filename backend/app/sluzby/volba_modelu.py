@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from app.config import aktivni_model, nastav_aktivni_model, nastaveni, vychozi_model
 from app.db import precti_volbu, smaz_volbu, uloz_volbu
 from app.jadro.llm import OllamaPoskytovatel
+from app.sluzby.nacitani import predehrej_llm
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +93,8 @@ def zmen_model(nazev: str | None, kdo: str = "neznámý") -> StavVolbyModelu:
         smaz_volbu(KLIC_VOLBY)
         novy = nastav_aktivni_model(None)
         logger.info("Jazykový model vrácen na výchozí hodnotu %s.", novy)
+        if nastaveni().predehrat_modely:
+            predehrej_llm(novy)
         return zjisti_stav()
 
     dostupna, modely = _seznam_modelu()
@@ -109,4 +112,6 @@ def zmen_model(nazev: str | None, kdo: str = "neznámý") -> StavVolbyModelu:
     novy = nastav_aktivni_model(pozadovany)
     uloz_volbu(KLIC_VOLBY, novy, kdo=kdo)
     logger.info("Jazykový model přepnut z %s na %s (%s).", puvodni, novy, kdo)
+    if nastaveni().predehrat_modely:
+        predehrej_llm(novy)
     return zjisti_stav()

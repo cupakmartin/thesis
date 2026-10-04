@@ -34,14 +34,22 @@ from app.jadro.duplicity import (
     zkontroluj_novou_polozku,
 )
 from app.jadro.dokument import MAX_VELIKOST_PDF, ChybaDokumentu, vytez_text_z_pdf
-from app.jadro.glosar import PolozkaGlosare, glosar
+from app.jadro.glosar import glosar
+from app.jadro.jazyky import JAZYKY
 from app.jadro.llm import OllamaPoskytovatel
 from app.jadro.rag import PozadavekPrekladu
 from app.jadro.taxonomie import zarad_pravidlove
 from app.sluzby.deduplikace import sluzba_deduplikace
 from app.sluzby.katalog import FiltrKatalogu, sluzba_katalogu
+from app.sluzby.glosar_sprava import (
+    ChybaGlosare,
+    TerminNenalezen,
+    serializuj as serializuj_termin,
+    sluzba_glosare,
+)
 from app.sluzby.kontrola import sluzba_kontroly
 from app.sluzby.mif import polozka_do_xml, sluzba_mif, xml_do_polozek
+from app.sluzby.nacitani import predehrej_embeddingy, predehrej_llm, stav_nacitani
 from app.sluzby.prekladani import sluzba_prekladu
 from app.sluzby.slucovani import ChybaSlucovani, sluzba_slucovani
 from app.sluzby.volba_modelu import ChybaVolbyModelu, zjisti_stav, zmen_model
@@ -93,6 +101,26 @@ def zmen_jazykovy_model(pozadavek: PozadavekZmenyModelu) -> dict[str, Any]:
         return zmen_model(pozadavek.model, kdo=pozadavek.kdo).jako_slovnik()
     except ChybaVolbyModelu as chyba:
         raise HTTPException(status_code=400, detail=str(chyba)) from chyba
+
+
+@router_system.get("/jazyky")
+def podporovane_jazyky() -> list[dict[str, str]]:
+    return [{"kod": j.kod, "nazev": j.nazev} for j in JAZYKY.values()]
+
+
+@router_system.get("/nacitani")
+def stav_nacitani_modelu() -> dict[str, Any]:
+    return stav_nacitani()
+
+
+@router_system.post("/nacitani")
+def nacti_modely() -> dict[str, Any]:
+    stav = stav_nacitani()
+    if stav["llm"]["stav"] == "nenacten":
+        predehrej_llm()
+    if stav["embedding"]["stav"] == "nenacten":
+        predehrej_embeddingy()
+    return stav_nacitani()
 
 
 @router_system.post("/kontrola-modelu")
@@ -147,7 +175,15 @@ def hodnoty_filtru() -> dict[str, list[str]]:
     return sluzba_katalogu().rozliseni_hodnot()
 
 
-@router_polozky.get("/{itemnum}")
+@router_polozky.get("/{itemnum:path}/xml", response_class=PlainTextResponse)
+def polozka_jako_xml(itemnum: str) -> str:
+    polozka = sluzba_katalogu().detail(itemnum)
+    if polozka is None:
+        raise HTTPException(status_code=404, detail=f"Položka {itemnum} nebyla nalezena.")
+    return polozka_do_xml(polozka)
+
+
+@router_polozky.get("/{itemnum:path}")
 def detail_polozky(itemnum: str) -> dict[str, Any]:
     polozka = sluzba_katalogu().detail(itemnum)
     if polozka is None:
@@ -184,13 +220,6 @@ def importuj_katalog(pozadavek: PozadavekImportu) -> Potvrzeni:
         podrobnosti={"pocet": pocet},
     )
 
-
-@router_polozky.get("/{itemnum}/xml", response_class=PlainTextResponse)
-def polozka_jako_xml(itemnum: str) -> str:
-    polozka = sluzba_katalogu().detail(itemnum)
-    if polozka is None:
-        raise HTTPException(status_code=404, detail=f"Položka {itemnum} nebyla nalezena.")
-    return polozka_do_xml(polozka)
 
 router_dedup = APIRouter(prefix="/deduplikace", tags=["Deduplikace"])
 
@@ -411,10 +440,11 @@ def prelozi_text(pozadavek: PozadavekPrekladuAPI) -> dict[str, Any]:
         "nalezene_terminy": [
             {
                 "id": n.polozka.id,
-                "termin_en": n.polozka.termin_en,
-                "termin_cs": n.polozka.termin_cs,
+                "termin_zdroj": n.polozka.termin(vysledek.zdrojovy_jazyk),
+                "termin_cil": n.polozka.termin(vysledek.cilovy_jazyk),
+                "cil_neoveren": vysledek.cilovy_jazyk in n.polozka.strojove,
                 "definice": n.polozka.definice,
-                "nespravne": n.polozka.nespravne,
+                "nespravne": n.polozka.nespravne_v(vysledek.cilovy_jazyk),
                 "kategorie": n.polozka.kategorie,
                 "zdroj": n.polozka.zdroj,
                 "zpusob": n.zpusob,
@@ -453,11 +483,6 @@ def _radek_ndjson(udalost: dict[str, Any]) -> str:
 
 @router_preklad.post("/dokument")
 def prelozi_dokument(pozadavek: PozadavekDokumentuAPI) -> StreamingResponse:
-    """Přeloží delší text po úsecích; průběh se odesílá po řádcích NDJSON.
-
-    Události: plan (počet úseků), usek (každý přeložený úsek), hotovo
-    (celý překlad a souhrnná kontrola), případně chyba.
-    """
     udalosti = sluzba_prekladu().prelozi_dokument(
         text=pozadavek.text,
         zdrojovy_jazyk=pozadavek.zdrojovy_jazyk,
@@ -492,7 +517,6 @@ def prelozi_dokument(pozadavek: PozadavekDokumentuAPI) -> StreamingResponse:
     }},
 )
 async def nacti_pdf(request: Request) -> dict[str, Any]:
-    """Vytěží text z nahraného PDF; soubor se posílá jako tělo požadavku."""
     delka = int(request.headers.get("content-length") or 0)
     if delka > MAX_VELIKOST_PDF:
         raise HTTPException(status_code=413, detail="Soubor PDF je příliš velký.")
@@ -525,33 +549,27 @@ router_glosar = APIRouter(prefix="/glosar", tags=["Glosář"])
 def seznam_glosare(
     hledany_text: str = "",
     kategorie: str = "",
+    jen_strojove: bool = False,
     limit: int = Query(default=50, ge=1, le=500),
     odsazeni: int = Query(default=0, ge=0),
 ) -> OdpovedSeStrankovanim:
-    zdroj = glosar()
-    polozky = zdroj.polozky
+    polozky = glosar().polozky
 
     if hledany_text:
-        hledane = hledany_text.lower()
+        hledane = hledany_text.casefold()
         polozky = [
             p for p in polozky
-            if hledane in p.termin_en.lower()
-            or hledane in p.termin_cs.lower()
-            or hledane in p.definice.lower()
+            if any(hledane in t.casefold() for t in p.terminy.values())
+            or hledane in p.definice.casefold()
         ]
     if kategorie:
         polozky = [p for p in polozky if p.kategorie == kategorie]
+    if jen_strojove:
+        polozky = [p for p in polozky if p.strojove]
 
     vyrez = polozky[odsazeni: odsazeni + limit]
     return OdpovedSeStrankovanim(
-        polozky=[
-            {
-                "id": p.id, "termin_en": p.termin_en, "termin_cs": p.termin_cs,
-                "kategorie": p.kategorie, "definice": p.definice,
-                "nespravne": p.nespravne, "zdroj": p.zdroj,
-            }
-            for p in vyrez
-        ],
+        polozky=[serializuj_termin(p) for p in vyrez],
         celkem=len(polozky),
         limit=limit,
         odsazeni=odsazeni,
@@ -560,42 +578,79 @@ def seznam_glosare(
 
 @router_glosar.get("/kategorie")
 def kategorie_glosare() -> list[str]:
-    return sorted({p.kategorie for p in glosar().polozky if p.kategorie})
+    return sluzba_glosare().kategorie()
 
 
-@router_glosar.post("", response_model=Potvrzeni)
-def pridej_termin(pozadavek: PolozkaGlosareAPI) -> Potvrzeni:
-    zdroj = glosar()
-    novy_id = f"G{len(zdroj.polozky) + 1:04d}"
-    zdroj.pridej(PolozkaGlosare(
-        id=novy_id,
-        termin_en=pozadavek.termin_en,
-        termin_cs=pozadavek.termin_cs,
-        kategorie=pozadavek.kategorie,
-        definice=pozadavek.definice,
-        nespravne=pozadavek.nespravne,
-        zdroj=pozadavek.zdroj,
-    ))
-    zdroj.uloz_do_csv()
-    return Potvrzeni(zprava=f"Termín {novy_id} byl přidán.",
-                     podrobnosti={"id": novy_id})
+@router_glosar.get("/stav")
+def stav_glosare() -> dict[str, int]:
+    polozky = glosar().polozky
+    return {
+        "celkem": len(polozky),
+        "k_doplneni": len(sluzba_glosare().k_doplneni()),
+        "neovereno": sum(1 for p in polozky if p.strojove),
+    }
 
 
-@router_glosar.put("/{id_terminu}", response_model=Potvrzeni)
-def uprav_termin(id_terminu: str, pozadavek: PolozkaGlosareAPI) -> Potvrzeni:
-    zdroj = glosar()
-    nalezeno = zdroj.uprav(
-        id_terminu,
-        termin_en=pozadavek.termin_en,
-        termin_cs=pozadavek.termin_cs,
-        kategorie=pozadavek.kategorie,
-        definice=pozadavek.definice,
-        nespravne=pozadavek.nespravne,
-    )
-    if not nalezeno:
-        raise HTTPException(status_code=404, detail=f"Termín {id_terminu} nebyl nalezen.")
-    zdroj.uloz_do_csv()
-    return Potvrzeni(zprava=f"Termín {id_terminu} byl upraven.")
+@router_glosar.post("")
+def pridej_termin(pozadavek: PolozkaGlosareAPI) -> dict[str, Any]:
+    try:
+        polozka = sluzba_glosare().pridej(
+            terminy=pozadavek.terminy,
+            kategorie=pozadavek.kategorie,
+            definice=pozadavek.definice,
+            nespravne=pozadavek.nespravne,
+            zdroj=pozadavek.zdroj,
+            kdo=pozadavek.kdo,
+            model=pozadavek.model,
+        )
+    except ChybaGlosare as chyba:
+        raise HTTPException(status_code=400, detail=str(chyba)) from chyba
+    except Exception as chyba:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Ostatní jazyky se nepodařilo doplnit: {chyba}",
+        ) from chyba
+    return serializuj_termin(polozka)
+
+
+@router_glosar.put("/{id_terminu}")
+def uprav_termin(id_terminu: str, pozadavek: PolozkaGlosareAPI) -> dict[str, Any]:
+    try:
+        polozka = sluzba_glosare().uprav(
+            id_terminu,
+            terminy=pozadavek.terminy,
+            kategorie=pozadavek.kategorie,
+            definice=pozadavek.definice,
+            nespravne=pozadavek.nespravne,
+            overene=pozadavek.overene,
+            kdo=pozadavek.kdo,
+            model=pozadavek.model,
+        )
+    except TerminNenalezen as chyba:
+        raise HTTPException(status_code=404, detail=str(chyba)) from chyba
+    except ChybaGlosare as chyba:
+        raise HTTPException(status_code=400, detail=str(chyba)) from chyba
+    except Exception as chyba:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Ostatní jazyky se nepodařilo doplnit: {chyba}",
+        ) from chyba
+    return serializuj_termin(polozka)
+
+
+@router_glosar.post("/doplnit-jazyky")
+def dopln_jazyky_glosare(model: str | None = None) -> StreamingResponse:
+    udalosti = sluzba_glosare().dopln_vse(model=model)
+
+    def proud() -> Iterator[str]:
+        try:
+            for udalost in udalosti:
+                yield _radek_ndjson(udalost)
+        except Exception as chyba:
+            logger.exception("Doplnění jazyků glosáře přerušeno.")
+            yield _radek_ndjson({"typ": "chyba", "zprava": str(chyba)})
+
+    return StreamingResponse(proud(), media_type="application/x-ndjson")
 
 
 @router_glosar.delete("/{id_terminu}", response_model=Potvrzeni)

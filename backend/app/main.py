@@ -13,10 +13,12 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.routery import VSECHNY_SMEROVACE
 from app.api.routery_analyza import VSECHNY_SMEROVACE_ANALYZY
+from app.api.routery_katalog import VSECHNY_SMEROVACE_KATALOGU
 from app.api.routery_prubeh import VSECHNY_SMEROVACE_PRUBEHU
 from app.config import nastaveni
 from app.db import inicializuj_schema
-from app.sluzby.katalog import sluzba_katalogu
+from app.sluzby.import_katalogu import pri_startu
+from app.sluzby.nacitani import predehrej_vse
 from app.sluzby.volba_modelu import obnov_ulozenou_volbu
 
 logging.basicConfig(
@@ -39,14 +41,9 @@ async def zivotni_cyklus(aplikace: FastAPI):
     inicializuj_schema()
 
     logger.info("Aktivní jazykový model: %s", obnov_ulozenou_volbu())
+    predehrej_vse()
 
-    katalog = sluzba_katalogu()
-    if katalog.pocet() == 0 and konfigurace.soubor_katalogu.exists():
-        try:
-            pocet = katalog.nacti_z_csv(kdo="systém")
-            logger.info("Při startu načteno %d položek katalogu.", pocet)
-        except Exception as chyba:
-            logger.warning("Katalog se při startu nepodařilo načíst: %s", chyba)
+    pri_startu()
 
     yield
 
@@ -81,6 +78,7 @@ def vytvor_aplikaci() -> FastAPI:
     for smerovac in (
         *VSECHNY_SMEROVACE,
         *VSECHNY_SMEROVACE_ANALYZY,
+        *VSECHNY_SMEROVACE_KATALOGU,
         *VSECHNY_SMEROVACE_PRUBEHU,
     ):
         aplikace.include_router(smerovac, prefix="/api")

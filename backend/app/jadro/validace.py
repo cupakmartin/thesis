@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 from app.jadro.atributy import vytez_atributy
 from app.jadro.glosar import NalezenyTermin
+from app.jadro.jazyky import obsahuje_cjk
 from app.jadro.normalizace import odstran_diakritiku
 
 DELKA_KONCOVKY_PODLE_DELKY: tuple[tuple[int, int], ...] = (
@@ -39,11 +40,13 @@ def _kmeny_odpovidaji(prvni: str, druhy: str) -> bool:
 
 
 def _slova(text: str) -> list[str]:
-    normalizovany = odstran_diakritiku(text).lower()
+    normalizovany = odstran_diakritiku(text.replace("ß", "ss")).lower()
     return [s for s in re.findall(r"[a-z0-9]+", normalizovany) if s]
 
 
 def obsahuje_termin(text: str, termin: str) -> bool:
+    if obsahuje_cjk(termin):
+        return termin.strip() in text
     slova_terminu = [s for s in _slova(termin) if s not in NEVYZNAMOVA_SLOVA]
     if not slova_terminu:
         return False
@@ -155,16 +158,15 @@ def zvaliduj_preklad(
         ocekavan = obsahuje_termin(zdrojovy_text, termin_zdroj)
         dodrzen = obsahuje_termin(preklad, termin_cil) if ocekavan else False
 
-        nespravna_pouzita = bool(
-            polozka.nespravne and obsahuje_termin(preklad, polozka.nespravne)
-        )
+        nespravna = polozka.nespravne_v(cilovy_jazyk)
+        nespravna_pouzita = bool(nespravna and obsahuje_termin(preklad, nespravna))
 
         vysledek.kontroly.append(KontrolaTerminu(
             termin_zdroj=termin_zdroj,
             termin_cil=termin_cil,
             ocekavan=ocekavan,
             dodrzen=dodrzen,
-            nespravna_varianta=polozka.nespravne,
+            nespravna_varianta=nespravna,
             nespravna_varianta_pouzita=nespravna_pouzita,
         ))
 

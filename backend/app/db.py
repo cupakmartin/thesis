@@ -145,6 +145,24 @@ CREATE TABLE IF NOT EXISTS volby (
     zmeneno            TEXT NOT NULL,
     kdo                TEXT
 );
+
+CREATE TABLE IF NOT EXISTS katalog (
+    id                 INTEGER PRIMARY KEY CHECK (id = 1),
+    nazev_souboru      TEXT NOT NULL,
+    zdroj              TEXT NOT NULL,
+    importovano        TEXT NOT NULL,
+    kdo                TEXT,
+    sloupce_json       TEXT NOT NULL,
+    nastaveni_json     TEXT NOT NULL,
+    pocet_polozek      INTEGER NOT NULL DEFAULT 0,
+    preskoceno         INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS kategorie_glosare (
+    nazev              TEXT PRIMARY KEY,
+    vytvoreno          TEXT NOT NULL,
+    kdo                TEXT
+);
 """
 
 
@@ -183,6 +201,9 @@ def pripoj(pouze_cteni: bool = False) -> Iterator[sqlite3.Connection]:
 def inicializuj_schema() -> None:
     with pripoj() as spojeni:
         spojeni.executescript(SCHEMA)
+        sloupce = {r["name"] for r in spojeni.execute("PRAGMA table_info(polozky)")}
+        if "data_json" not in sloupce:
+            spojeni.execute("ALTER TABLE polozky ADD COLUMN data_json TEXT")
     logger.info("Schéma databáze připraveno (%s).", cesta_databaze())
 
 
@@ -207,6 +228,19 @@ def uloz_volbu(klic: str, hodnota: str, kdo: str | None = None) -> None:
 def smaz_volbu(klic: str) -> None:
     with pripoj() as spojeni:
         spojeni.execute("DELETE FROM volby WHERE klic = ?", (klic,))
+
+
+def uloz_kategorii_glosare(nazev: str, kdo: str | None = None) -> None:
+    with pripoj() as spojeni:
+        spojeni.execute(
+            "INSERT OR IGNORE INTO kategorie_glosare (nazev, vytvoreno, kdo) VALUES (?, ?, ?)",
+            (nazev, nyni(), kdo),
+        )
+
+
+def seznam_kategorii_glosare() -> list[str]:
+    with pripoj(pouze_cteni=True) as spojeni:
+        return [r["nazev"] for r in spojeni.execute("SELECT nazev FROM kategorie_glosare")]
 
 
 def smaz_vse() -> None:

@@ -6,11 +6,12 @@ import {
   type UsekDokumentu,
   type VysledekPrekladu,
 } from "../api";
-import { useNacti } from "../hooky";
+import { useJazyky, useNacti } from "../hooky";
 import {
   Ikona,
   Panel,
   PrazdnyStav,
+  VolbaJazyka,
   ZahlaviObrazovky,
   formatujProcenta,
   useOznameni,
@@ -87,6 +88,7 @@ function stahniText(text: string, nazev: string) {
 export default function Preklad() {
   const { pridej, vykresli } = useOznameni();
   const stav = useNacti(() => api.system.stav(), []);
+  const jazyky = useJazyky();
 
   const [text, nastavText] = useState(UKAZKY[0]);
   const [zdrojovy, nastavZdrojovy] = useState("en");
@@ -245,17 +247,13 @@ export default function Preklad() {
           <Panel nadpis="Zdrojový text">
             <div className="space-y-3.5">
               <div className="flex items-end gap-2">
-                <div className="flex-1">
-                  <label className="stitek-pole">Z jazyka</label>
-                  <select
-                    className="pole"
-                    value={zdrojovy}
-                    onChange={(e) => nastavZdrojovy(e.target.value)}
-                  >
-                    <option value="en">angličtina</option>
-                    <option value="cs">čeština</option>
-                  </select>
-                </div>
+                <VolbaJazyka
+                  id="preklad-zdroj"
+                  popisek="Z jazyka"
+                  hodnota={zdrojovy}
+                  jazyky={jazyky}
+                  naZmenu={nastavZdrojovy}
+                />
                 <button
                   className="tlacitko-vedlejsi px-2 mb-px"
                   onClick={prohodJazyky}
@@ -264,17 +262,13 @@ export default function Preklad() {
                 >
                   ⇄
                 </button>
-                <div className="flex-1">
-                  <label className="stitek-pole">Do jazyka</label>
-                  <select
-                    className="pole"
-                    value={cilovy}
-                    onChange={(e) => nastavCilovy(e.target.value)}
-                  >
-                    <option value="cs">čeština</option>
-                    <option value="en">angličtina</option>
-                  </select>
-                </div>
+                <VolbaJazyka
+                  id="preklad-cil"
+                  popisek="Do jazyka"
+                  hodnota={cilovy}
+                  jazyky={jazyky}
+                  naZmenu={nastavCilovy}
+                />
               </div>
 
               <div>
@@ -737,19 +731,29 @@ function TerminyGlosare({ vysledek }: { vysledek: VysledekPrekladu }) {
           <tbody>
             {vysledek.nalezene_terminy.map((t) => {
               const kontrola = vysledek.validace.kontroly.find(
-                (k) => k.termin_zdroj === t.termin_en,
+                (k) => k.termin_zdroj === t.termin_zdroj,
               );
               return (
                 <tr key={t.id}>
                   <td>
-                    <span className="text-text">{t.termin_en}</span>
+                    <span className="text-text">{t.termin_zdroj}</span>
                     {t.nespravne && (
                       <span className="block text-2xs text-chyba mt-0.5">
                         nepoužívat: {t.nespravne}
                       </span>
                     )}
                   </td>
-                  <td className="text-text">{t.termin_cs}</td>
+                  <td className="text-text">
+                    {t.termin_cil}
+                    {t.cil_neoveren && (
+                      <span
+                        className="odznak-vystraha ml-1.5"
+                        title="Překlad termínu doplnil jazykový model a zatím jej nikdo neověřil."
+                      >
+                        neověřeno
+                      </span>
+                    )}
+                  </td>
                   <td>
                     <span
                       className={

@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { ZAKLAD } from "../api";
+import { useJazyky } from "../hooky";
 import {
   ChybovyStav,
   Kod,
   Metrika,
   Nacitani,
   Panel,
+  VolbaJazyka,
   ZahlaviObrazovky,
 } from "../komponenty";
 
@@ -178,6 +180,9 @@ function PrekladKrokPoKroku() {
   const [data, nastavData] = useState<ZaznamPrekladu | null>(null);
   const [probiha, nastavProbiha] = useState(false);
   const [chyba, nastavChybu] = useState<string | null>(null);
+  const [zdrojovy, nastavZdrojovy] = useState("en");
+  const [cilovy, nastavCilovy] = useState("cs");
+  const jazyky = useJazyky();
 
   async function spust() {
     nastavProbiha(true);
@@ -186,8 +191,8 @@ function PrekladKrokPoKroku() {
       nastavData(
         await posli<ZaznamPrekladu>("/prubeh/preklad", {
           text,
-          zdrojovy_jazyk: "en",
-          cilovy_jazyk: "cs",
+          zdrojovy_jazyk: zdrojovy,
+          cilovy_jazyk: cilovy,
         }),
       );
     } catch (e) {
@@ -200,12 +205,28 @@ function PrekladKrokPoKroku() {
   return (
     <Panel
       nadpis="Překlad krok po kroku"
-      popis="Šest kroků od vstupu k výsledku, každý s vlastním měřením"
+      popis="Kroky od vstupu k výsledku, každý s vlastním měřením"
     >
       <div className="p-3 space-y-3">
+        <div className="flex items-end gap-2">
+          <VolbaJazyka
+            id="prubeh-zdroj"
+            popisek="Z jazyka"
+            hodnota={zdrojovy}
+            jazyky={jazyky}
+            naZmenu={nastavZdrojovy}
+          />
+          <VolbaJazyka
+            id="prubeh-cil"
+            popisek="Do jazyka"
+            hodnota={cilovy}
+            jazyky={jazyky}
+            naZmenu={nastavCilovy}
+          />
+        </div>
         <div>
           <label className="stitek-pole" htmlFor="prubeh-text">
-            Anglický text k překladu
+            Text k překladu
           </label>
           <textarea
             id="prubeh-text"
@@ -219,7 +240,7 @@ function PrekladKrokPoKroku() {
         <button
           className="tlacitko-hlavni"
           onClick={() => void spust()}
-          disabled={probiha || !text.trim()}
+          disabled={probiha || !text.trim() || zdrojovy === cilovy}
         >
           {probiha ? "Zpracovávám…" : "Zpracovat a zaznamenat průběh"}
         </button>
@@ -297,8 +318,8 @@ function UdajeKroku({ udaje }: { udaje: Record<string, unknown> }) {
 
         if (klic === "terminy" && Array.isArray(hodnota)) {
           const terminy = hodnota as {
-            en: string;
-            cs: string;
+            zdroj: string;
+            cil: string;
             skore: number;
             zpusob: string;
           }[];
@@ -306,8 +327,8 @@ function UdajeKroku({ udaje }: { udaje: Record<string, unknown> }) {
             <table key={klic} className="tabulka">
               <thead>
                 <tr>
-                  <th>Anglicky</th>
-                  <th>Česky</th>
+                  <th>Termín ve zdroji</th>
+                  <th>Závazný překlad</th>
                   <th>Skóre</th>
                   <th>Způsob nalezení</th>
                 </tr>
@@ -315,8 +336,8 @@ function UdajeKroku({ udaje }: { udaje: Record<string, unknown> }) {
               <tbody>
                 {terminy.map((t, i) => (
                   <tr key={i}>
-                    <td>{t.en}</td>
-                    <td>{t.cs}</td>
+                    <td>{t.zdroj}</td>
+                    <td>{t.cil}</td>
                     <td className="font-mono">{t.skore.toFixed(4)}</td>
                     <td>{t.zpusob}</td>
                   </tr>

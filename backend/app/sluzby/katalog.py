@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import csv
+import json
 import logging
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import numpy as np
 
@@ -16,30 +16,8 @@ from app.jadro.duplicity import ZaznamPolozky
 from app.jadro.embeddingy import SpravceEmbeddingu, spravce_embeddingu
 from app.jadro.index_faiss import VektorovyIndex
 from app.jadro.normalizace import normalizuj_pro_embedding
-from app.jadro.taxonomie import zarad_pravidlove
 
 logger = logging.getLogger(__name__)
-
-SLOUPCE_MAXIMO = {
-    "itemnum": "ITEMNUM",
-    "description": "DESCRIPTION",
-    "long_description": "DESCRIPTION_LONGDESCRIPTION",
-    "itemtype": "ITEMTYPE",
-    "commodity_group": "COMMODITYGROUP",
-    "order_unit": "ORDERUNIT",
-    "issue_unit": "ISSUEUNIT",
-    "status": "STATUS",
-    "rotating": "ROTATING",
-    "manufacturer": "MANUFACTURER",
-    "model_num": "MODELNUM",
-    "vendor": "VENDOR",
-    "external_ref_id": "EXTERNALREFID",
-    "iso_class": "ISOCLASS",
-    "lang_code": "LANGCODE",
-    "change_date": "CHANGEDATE",
-    "change_by": "CHANGEBY",
-}
-
 
 @dataclass
 class FiltrKatalogu:
@@ -64,73 +42,10 @@ class SluzbaKatalogu:
         self._zaznamy: list[ZaznamPolozky] = []
         self._zamek = threading.Lock()
 
-    def nacti_z_csv(
-        self,
-        cesta: Path | None = None,
-        kdo: str = "systém",
-        oddelovac: str = ";",
-    ) -> int:
-        cilova_cesta = cesta or self._nastaveni.soubor_katalogu
-        if not cilova_cesta.exists():
-            raise FileNotFoundError(
-                f"Soubor katalogu nebyl nalezen: {cilova_cesta}. "
-                f"Spusťte nejprve skripty/generuj_dataset.py."
-            )
+    def nacti_z_csv(self, cesta: Path | None = None, kdo: str = "systém") -> int:
+        from app.sluzby.import_katalogu import importuj_soubor
 
-        with cilova_cesta.open(encoding="utf-8-sig") as soubor:
-            radky = list(csv.DictReader(soubor, delimiter=oddelovac))
-
-        if not radky:
-            raise ValueError("Soubor katalogu neobsahuje žádné záznamy.")
-
-        chybejici = {"ITEMNUM", "DESCRIPTION"} - set(radky[0].keys())
-        if chybejici:
-            raise ValueError(
-                f"V exportu chybí povinné sloupce: {', '.join(sorted(chybejici))}."
-            )
-
-        pripravene: list[tuple[Any, ...]] = []
-        for poradi, radek in enumerate(radky):
-            hodnoty = {
-                klic: (radek.get(sloupec) or "").strip()
-                for klic, sloupec in SLOUPCE_MAXIMO.items()
-            }
-            if not hodnoty["itemnum"]:
-                continue
-
-            if not hodnoty["iso_class"]:
-                zarazeni = zarad_pravidlove(
-                    hodnoty["description"], hodnoty["commodity_group"]
-                )
-                hodnoty["iso_class"] = zarazeni.kod if zarazeni else ""
-
-            pripravene.append((
-                hodnoty["itemnum"], hodnoty["description"], hodnoty["long_description"],
-                hodnoty["itemtype"], hodnoty["commodity_group"], hodnoty["order_unit"],
-                hodnoty["issue_unit"], hodnoty["status"],
-                1 if hodnoty["rotating"] in {"1", "true", "True"} else 0,
-                hodnoty["manufacturer"], hodnoty["model_num"], hodnoty["vendor"],
-                hodnoty["external_ref_id"], hodnoty["iso_class"], hodnoty["lang_code"],
-                hodnoty["change_date"], hodnoty["change_by"], poradi,
-            ))
-
-        with pripoj() as spojeni:
-            spojeni.execute("DELETE FROM polozky")
-            spojeni.executemany(
-                """
-                INSERT INTO polozky (
-                    itemnum, description, long_description, itemtype,
-                    commodity_group, order_unit, issue_unit, status, rotating,
-                    manufacturer, model_num, vendor, external_ref_id, iso_class,
-                    lang_code, change_date, change_by, poradi
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                pripravene,
-            )
-
-        self.invaliduj_index()
-        logger.info("Načteno %d položek katalogu z %s.", len(pripravene), cilova_cesta)
-        return len(pripravene)
+        return int(importuj_soubor(cesta or self._nastaveni.soubor_katalogu, kdo=kdo)["pocet_polozek"])
 
     def pocet(self) -> int:
         with pripoj(pouze_cteni=True) as spojeni:
@@ -141,12 +56,9 @@ class SluzbaKatalogu:
         parametry: list[Any] = []
 
         if filtr.hledany_text:
-            podminky.append(
-                "(description LIKE ? OR itemnum LIKE ? OR manufacturer LIKE ? "
-                "OR model_num LIKE ?)"
-            )
+            podminky.append("(description LIKE ? OR itemnum LIKE ? OR data_json LIKE ?)")
             vzor = f"%{filtr.hledany_text}%"
-            parametry.extend([vzor, vzor, vzor, vzor])
+            parametry.extend([vzor, vzor, vzor])
         if filtr.komoditni_skupina:
             podminky.append("commodity_group = ?")
             parametry.append(filtr.komoditni_skupina)
@@ -194,14 +106,14 @@ class SluzbaKatalogu:
                 [*parametry, limit, odsazeni],
             ).fetchall()
 
-        return [dict(r) for r in radky], celkem
+        return [_s_daty(r) for r in radky], celkem
 
     def detail(self, itemnum: str) -> dict[str, Any] | None:
         with pripoj(pouze_cteni=True) as spojeni:
             radek = spojeni.execute(
                 "SELECT * FROM polozky WHERE itemnum = ?", (itemnum,)
             ).fetchone()
-        return dict(radek) if radek else None
+        return _s_daty(radek) if radek else None
 
     def rozliseni_hodnot(self) -> dict[str, list[str]]:
         with pripoj(pouze_cteni=True) as spojeni:
@@ -314,15 +226,12 @@ class SluzbaKatalogu:
     def je_index_pripraven(self) -> bool:
         return self._index is not None
 
-    def export_do_csv(self, cesta: Path, filtr: FiltrKatalogu | None = None) -> int:
-        polozky, _ = self.seznam(filtr, limit=1_000_000, odsazeni=0)
-        cesta.parent.mkdir(parents=True, exist_ok=True)
-        with cesta.open("w", encoding="utf-8", newline="") as soubor:
-            zapisovac = csv.writer(soubor, delimiter=";", quoting=csv.QUOTE_MINIMAL)
-            zapisovac.writerow(list(SLOUPCE_MAXIMO.values()))
-            for p in polozky:
-                zapisovac.writerow([p.get(klic, "") for klic in SLOUPCE_MAXIMO])
-        return len(polozky)
+
+def _s_daty(radek: Any) -> dict[str, Any]:
+    polozka = dict(radek)
+    polozka["data"] = json.loads(polozka.pop("data_json", None) or "{}")
+    return polozka
+
 
 _sdilena_sluzba: SluzbaKatalogu | None = None
 

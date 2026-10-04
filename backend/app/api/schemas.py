@@ -85,12 +85,15 @@ class PozadavekDokumentuAPI(BaseModel):
     kdo: str = "neznámý"
 
 class PolozkaGlosareAPI(BaseModel):
-    termin_en: str = Field(min_length=1)
-    termin_cs: str = Field(min_length=1)
-    kategorie: str = ""
+    terminy: dict[str, str] = Field(
+        description="Termín podle kódu jazyka; vyplněny alespoň dva jazyky.",
+    )
+    kategorie: str = Field(min_length=1)
     definice: str = ""
-    nespravne: str = ""
+    nespravne: dict[str, str] = Field(default_factory=dict)
     zdroj: str = "firemní glosář"
+    overene: list[str] = Field(default_factory=list)
+    model: str | None = None
     kdo: str = "neznámý"
 
 class UdalostMIF(BaseModel):

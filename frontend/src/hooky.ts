@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChybaApi } from "./api";
+import { ChybaApi, api, type Jazyk } from "./api";
 
 export interface StavNacitani<T> {
   data: T | null;
@@ -60,4 +60,9 @@ export function useOdlozeno<T>(hodnota: T, prodleva = 300): T {
   }, [hodnota, prodleva]);
 
   return odlozena;
+}
+
+export function useJazyky(): Jazyk[] {
+  const jazyky = useNacti(() => api.system.jazyky(), []);
+  return jazyky.data ?? [];
 }

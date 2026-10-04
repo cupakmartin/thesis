@@ -376,3 +376,43 @@ export function formatujCislo(hodnota: number): string {
 export function formatujProcenta(hodnota: number, desetinnych = 1): string {
   return `${(hodnota * 100).toFixed(desetinnych)} %`;
 }
+
+export function VolbaJazyka({
+  id,
+  popisek,
+  hodnota,
+  jazyky,
+  naZmenu,
+}: {
+  id: string;
+  popisek: string;
+  hodnota: string;
+  jazyky: { kod: string; nazev: string }[];
+  naZmenu: (kod: string) => void;
+}) {
+  return (
+    <div className="flex-1">
+      <label className="stitek-pole" htmlFor={id}>
+        {popisek}
+      </label>
+      <select
+        id={id}
+        className="pole"
+        value={hodnota}
+        onChange={(e) => naZmenu(e.target.value)}
+      >
+        {jazyky.length === 0 && <option value={hodnota}>{hodnota}</option>}
+        {jazyky.map((j) => (
+          <option key={j.kod} value={j.kod}>
+            {j.nazev}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+export function sklonuj(pocet: number, jeden: string, dva: string, pet: string): string {
+  const n = Math.abs(pocet);
+  return `${formatujCislo(pocet)} ${n === 1 ? jeden : n >= 2 && n <= 4 ? dva : pet}`;
+}
