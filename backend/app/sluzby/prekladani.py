@@ -5,7 +5,7 @@ import json
 import logging
 import time
 from collections.abc import Iterator
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from typing import Any
 
 from app.db import nyni, pripoj
@@ -18,7 +18,7 @@ from app.jadro.rag import (
     PrekladacRAG,
     VysledekPrekladu,
 )
-from app.jadro.validace import VysledekValidace, zvaliduj_preklad
+from app.jadro.validace import KontrolaTerminu, VysledekValidace, zvaliduj_preklad
 
 ZPUSOB_DOKUMENT = "dokument"
 
@@ -48,10 +48,15 @@ class SluzbaPrekladu:
         ulozit: bool = True,
     ) -> tuple[VysledekPrekladu, VysledekValidace]:
         vysledek = self.prekladac.prelozi(pozadavek)
+        terminy_kontroly = vysledek.nalezene_terminy
+        if not pozadavek.pouzit_glosar:
+            terminy_kontroly = self.prekladac.naplanuj(
+                replace(pozadavek, pouzit_glosar=True)
+            ).nalezene_terminy
         validace = zvaliduj_preklad(
             zdrojovy_text=vysledek.zdrojovy_text,
             preklad=vysledek.preklad,
-            nalezene_terminy=vysledek.nalezene_terminy,
+            nalezene_terminy=terminy_kontroly,
             zdrojovy_jazyk=vysledek.zdrojovy_jazyk,
             cilovy_jazyk=vysledek.cilovy_jazyk,
         )
@@ -91,6 +96,7 @@ class SluzbaPrekladu:
         terminy: dict[str, NalezenyTermin] = {}
         souhrn = VysledekValidace()
         pouzity_model = ""
+        opravenych = 0
 
         for poradi, usek in enumerate(k_prekladu, 1):
             vysledek, validace = self.prelozi(
@@ -111,6 +117,9 @@ class SluzbaPrekladu:
                 pouzity_model = vysledek.model
             souhrn.kontroly.extend(validace.kontroly)
             souhrn.chybejici_identifikatory.extend(validace.chybejici_identifikatory)
+            souhrn.pocet_identifikatoru += validace.pocet_identifikatoru
+            if vysledek.prvni_pokus:
+                opravenych += 1
             souhrn.varovani.extend(f"Úsek {poradi}: {v}" for v in validace.varovani)
 
             yield {
@@ -124,6 +133,9 @@ class SluzbaPrekladu:
                 "doba_s": round(vysledek.doba_s, 3),
                 "pocet_ocekavanych": validace.pocet_ocekavanych,
                 "pocet_dodrzenych": validace.pocet_dodrzenych,
+                "problemy": [popis_problemu(k) for k in validace.problemy],
+                "chybejici_identifikatory": validace.chybejici_identifikatory,
+                "prvni_pokus": vysledek.prvni_pokus,
                 "varovani": validace.varovani,
             }
 
@@ -151,8 +163,11 @@ class SluzbaPrekladu:
             "mira_dodrzeni_glosare": souhrn.mira_dodrzeni_glosare,
             "pocet_ocekavanych": souhrn.pocet_ocekavanych,
             "pocet_dodrzenych": souhrn.pocet_dodrzenych,
+            "pocet_nespravnych_variant": souhrn.pocet_nespravnych_variant,
+            "pocet_identifikatoru": souhrn.pocet_identifikatoru,
             "identifikatory_zachovany": souhrn.identifikatory_zachovany,
             "chybejici_identifikatory": sorted(set(souhrn.chybejici_identifikatory)),
+            "pocet_opravenych": opravenych,
             "varovani": souhrn.varovani,
         }
 
@@ -227,19 +242,68 @@ class SluzbaPrekladu:
     def statistiky(self) -> dict[str, Any]:
         with pripoj(pouze_cteni=True) as spojeni:
             celkem = int(spojeni.execute("SELECT COUNT(*) FROM preklady").fetchone()[0])
-            radek = spojeni.execute(
-                "SELECT pouzity_glosar, COUNT(*), AVG(mira_dodrzeni) "
-                "FROM preklady GROUP BY pouzity_glosar"
+            radky = spojeni.execute(
+                """
+                SELECT pouzity_glosar,
+                       COUNT(*),
+                       SUM(json_extract(validace_json, '$.pocet_ocekavanych') > 0),
+                       SUM(json_extract(validace_json, '$.pocet_ocekavanych')),
+                       SUM(json_extract(validace_json, '$.pocet_dodrzenych')),
+                       SUM(json_extract(validace_json, '$.nespravne_varianty'))
+                FROM preklady GROUP BY pouzity_glosar
+                """
+            ).fetchall()
+            posledni = spojeni.execute(
+                """
+                SELECT id, vytvoreno, zdrojovy_text, preklad, zdrojovy_jazyk,
+                       cilovy_jazyk, pouzity_glosar, model, mira_dodrzeni,
+                       json_extract(validace_json, '$.pocet_ocekavanych')
+                FROM preklady ORDER BY id DESC LIMIT 5
+                """
             ).fetchall()
 
-        podle_glosare = {
-            ("s glosářem" if int(r[0]) else "bez glosáře"): {
+        podle_glosare: dict[str, dict[str, Any]] = {}
+        for r in radky:
+            ocekavano = int(r[3] or 0)
+            dodrzeno = int(r[4] or 0)
+            podle_glosare["s glosářem" if int(r[0]) else "bez glosáře"] = {
                 "pocet": int(r[1]),
-                "prumerne_dodrzeni": round(float(r[2] or 0.0), 4),
+                "pocet_s_terminy": int(r[2] or 0),
+                "ocekavano": ocekavano,
+                "dodrzeno": dodrzeno,
+                "nespravnych_variant": int(r[5] or 0),
+                "prumerne_dodrzeni": round(dodrzeno / ocekavano, 4) if ocekavano else 0.0,
             }
-            for r in radek
+        return {
+            "pocet_prekladu": celkem,
+            "podle_glosare": podle_glosare,
+            "posledni": [
+                {
+                    "id": r[0],
+                    "vytvoreno": r[1],
+                    "zdroj": r[2][:160],
+                    "preklad": r[3][:160],
+                    "zdrojovy_jazyk": r[4],
+                    "cilovy_jazyk": r[5],
+                    "pouzity_glosar": bool(r[6]),
+                    "model": r[7],
+                    "mira_dodrzeni": r[8] if int(r[9] or 0) > 0 else None,
+                }
+                for r in posledni
+            ],
         }
-        return {"pocet_prekladu": celkem, "podle_glosare": podle_glosare}
+
+
+def popis_problemu(kontrola: KontrolaTerminu) -> dict[str, Any]:
+    return {
+        "termin_zdroj": kontrola.termin_zdroj,
+        "termin_cil": kontrola.termin_cil,
+        "dodrzen": kontrola.dodrzen,
+        "nespravna_varianta": (
+            kontrola.nespravna_varianta if kontrola.nespravna_varianta_pouzita else ""
+        ),
+        "chybne_tvary": [list(dvojice) for dvojice in kontrola.chybne_tvary],
+    }
 
 
 _sdilena_sluzba: SluzbaPrekladu | None = None

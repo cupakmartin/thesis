@@ -140,7 +140,7 @@ function VektoroveJadro() {
               />
               <Metrika
                 popisek="Práh pro kandidáty"
-                hodnota={data.prah_kandidatu?.toFixed(2) ?? "—"}
+                hodnota={data.prah_kandidatu?.toFixed(2) ?? "-"}
               />
               <Metrika popisek="Doba výpočtu" hodnota={`${data.doba_ms} ms`} />
             </div>
@@ -352,7 +352,7 @@ function UdajeKroku({ udaje }: { udaje: Record<string, unknown> }) {
           return (
             <div key={klic}>
               <p className="stitek-pole">
-                vektor — {v.dimenze} složek, norma {v.norma.toFixed(4)}
+                vektor - {v.dimenze} složek, norma {v.norma.toFixed(4)}
               </p>
               <p className="font-mono text-2xs break-all text-textTlumeny">
                 [{v.prvnich_n.map((h) => h.toFixed(5)).join(", ")}, …]

@@ -2,10 +2,11 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 
 import pytest
 
-from app.jadro.llm import OdpovedLLM
+from app.jadro.llm import OdpovedLLM, StubPoskytovatel
 
 PREKLADY = {
     "angličtina": "nut", "čeština": "matice", "němčina": "Mutter",
@@ -14,12 +15,23 @@ PREKLADY = {
 }
 
 
-class JazykovyStub:
+class JazykovyStub(StubPoskytovatel):
     def __init__(self) -> None:
+        super().__init__()
         self.volani: list[str] = []
 
-    def generuj(self, systemova_instrukce, uzivatelsky_vstup, **kw) -> OdpovedLLM:
-        cil = re.search(r"v jazyce: (\S+)\.", systemova_instrukce).group(1)
+    def generuj(
+        self,
+        systemova_instrukce: str,
+        uzivatelsky_vstup: str,
+        temperature: float | None = None,
+        model: str | None = None,
+        max_tokenu: int | None = None,
+        stop: Sequence[str] | None = None,
+    ) -> OdpovedLLM:
+        shoda = re.search(r"v jazyce: (\S+)\.", systemova_instrukce)
+        assert shoda is not None
+        cil = shoda.group(1)
         self.volani.append(cil)
         return OdpovedLLM(text=PREKLADY[cil] + ".", model="stub", doba_s=0.0)
 

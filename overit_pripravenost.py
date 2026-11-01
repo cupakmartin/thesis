@@ -65,7 +65,7 @@ def zkontroluj_data() -> None:
     for nazev, cesta in soubory.items():
         if cesta.exists():
             radku = sum(1 for _ in cesta.open(encoding="utf-8")) - 1
-            vypis(V_PORADKU, f"{nazev} — {radku} záznamů")
+            vypis(V_PORADKU, f"{nazev} - {radku} záznamů")
         else:
             skript = ("generuj_dataset.py" if "atalog" in nazev or "round" in nazev
                       else "generuj_glosar.py")
@@ -76,7 +76,7 @@ def zkontroluj_data() -> None:
     cache = list((KOREN / "data" / "cache").glob("embeddingy_*.npz"))
     if cache:
         velikost = sum(c.stat().st_size for c in cache) / 1_048_576
-        vypis(V_PORADKU, f"Cache vektorů — {velikost:.0f} MB",
+        vypis(V_PORADKU, f"Cache vektorů - {velikost:.0f} MB",
               "První spuštění bude okamžité.")
     else:
         vypis(VAROVANI, "Cache vektorů chybí",
@@ -92,7 +92,7 @@ def zkontroluj_modely() -> None:
         vypis(V_PORADKU, "Embedding model stažen lokálně")
     else:
         vypis(VAROVANI, "Embedding model není v adresáři projektu",
-              "Stáhne se při prvním použití — vyžaduje připojení k internetu.")
+              "Stáhne se při prvním použití - vyžaduje připojení k internetu.")
 
     try:
         from app.config import nastaveni
@@ -106,7 +106,7 @@ def zkontroluj_modely() -> None:
             return
 
         modely = poskytovatel.seznam_modelu()
-        vypis(V_PORADKU, f"Ollama běží — {len(modely)} modelů",
+        vypis(V_PORADKU, f"Ollama běží - {len(modely)} modelů",
               ", ".join(modely) if modely else "")
 
         if konfigurace.model_llm not in modely:
@@ -125,7 +125,7 @@ def zkontroluj_rozhrani() -> None:
     if (dist / "index.html").exists():
         soubory = list(dist.rglob("*"))
         velikost = sum(s.stat().st_size for s in soubory if s.is_file()) / 1_048_576
-        vypis(V_PORADKU, f"Rozhraní sestaveno — {velikost:.1f} MB",
+        vypis(V_PORADKU, f"Rozhraní sestaveno - {velikost:.1f} MB",
               "Ke spuštění není potřeba Node.js.")
     else:
         vypis(CHYBA, "Rozhraní není sestaveno",
@@ -188,7 +188,7 @@ def zkontroluj_funkcnost() -> None:
 
         if validace.mira_dodrzeni_glosare >= 0.6:
             vypis(V_PORADKU,
-                  f"Překlad s glosářem — dodrženo "
+                  f"Překlad s glosářem - dodrženo "
                   f"{validace.mira_dodrzeni_glosare:.0%} termínů, {doba:.1f} s",
                   f"„{vysledek.preklad}“")
         else:
@@ -218,7 +218,7 @@ def main() -> None:
     print("\n" + "=" * 72)
     if pocet_chyb:
         print(f"  ZJIŠTĚNO {pocet_chyb} CHYB a {pocet_varovani} upozornění.")
-        print("  Aplikace není plně připravena — odstraňte chyby uvedené výše.")
+        print("  Aplikace není plně připravena - odstraňte chyby uvedené výše.")
     elif pocet_varovani:
         print(f"  Vše podstatné je v pořádku, {pocet_varovani} upozornění.")
         print("  Aplikaci lze spustit příkazem:  .venv\\Scripts\\python.exe spustit.py")

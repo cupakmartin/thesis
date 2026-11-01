@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from app.jadro.glosar import Glosar, PolozkaGlosare
+from app.jadro.glosar import KATEGORIE_DRUHU_PORUCHY, Glosar, PolozkaGlosare
 
 
 def _polozka() -> PolozkaGlosare:
@@ -76,10 +76,12 @@ class TestCsv:
 
 class TestVyhledani:
     def test_presna_shoda_v_nemcine(self):
-        assert _glosar(_polozka()).najdi_presnou_shodu("Mutter", "de").id == "G1"
+        nalezena = _glosar(_polozka()).najdi_presnou_shodu("Mutter", "de")
+        assert nalezena is not None and nalezena.id == "G1"
 
     def test_presna_shoda_v_japonstine(self):
-        assert _glosar(_polozka()).najdi_presnou_shodu("ナット", "ja").id == "G1"
+        nalezena = _glosar(_polozka()).najdi_presnou_shodu("ナット", "ja")
+        assert nalezena is not None and nalezena.id == "G1"
 
     def test_termin_uvnitr_cinske_vety_bez_mezer(self):
         nalezene = _glosar(_polozka()).najdi_doslovne("用扳手拧紧螺母。")
@@ -88,3 +90,12 @@ class TestVyhledani:
     def test_nemecky_termin_ve_vete(self):
         nalezene = _glosar(_polozka()).najdi_doslovne("Ziehen Sie die Mutter fest.")
         assert [n.polozka.id for n in nalezene] == ["G1"]
+
+
+class TestDruhPoruchyVTextu:
+    def test_bezne_slovo_neni_vyskytem_ciselnikove_hodnoty(self):
+        zdroj = Glosar()
+        zdroj.pridej(PolozkaGlosare(id="G1", termin_en="Other", termin_cs="Jiné",
+                                    kategorie=KATEGORIE_DRUHU_PORUCHY))
+        assert zdroj.najdi_doslovne("Ensure that all other employees left.") == []
+        assert [n.polozka.id for n in zdroj.najdi_doslovne("Failure mode: Other")] == ["G1"]

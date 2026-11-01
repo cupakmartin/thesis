@@ -355,7 +355,7 @@ export function useOznameni() {
 }
 
 export function formatujCas(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   try {
     return new Date(iso).toLocaleString("cs-CZ", {
       day: "2-digit",

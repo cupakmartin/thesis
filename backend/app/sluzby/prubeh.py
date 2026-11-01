@@ -102,8 +102,8 @@ def prubeh_prekladu(
 
     zaznam.krok(
         "Určení způsobu překladu",
-        "Krátký vstup — slovo, sousloví nebo popisek o nejvýše "
-        f"{KRATKY_VSTUP_MAX_SLOV} slovech bez větné interpunkce — se překládá "
+        "Krátký vstup - slovo, sousloví nebo popisek o nejvýše "
+        f"{KRATKY_VSTUP_MAX_SLOV} slovech bez větné interpunkce - se překládá "
         "jinak než věta. Je-li přesně termínem glosáře, odpovědí je glosář "
         "a model se nevolá. Ostatní krátké vstupy dostanou stručnou "
         "instrukci, věty instrukci úplnou.",
@@ -217,6 +217,24 @@ def prubeh_prekladu(
         preklad = zpracuj_odpoved(odpoved.text, text, plan.zpusob)
         pouzity_model = odpoved.model
         odpoved_doslovne = odpoved.text
+
+        oprava = prekladac.oprav(pozadavek, plan, preklad)
+        if oprava is not None:
+            zaznam.krok(
+                "Oprava podle kontroly",
+                "Kontrola zjistila termín glosáře, který model nepoužil správně. "
+                "Model proto dostane svůj první pokus spolu s chybnými termíny "
+                "a přeloží text znovu. Nový překlad se převezme jen tehdy, "
+                "dodrží-li glosář lépe než první pokus.",
+                oprava.doba_s,
+                prvni_pokus=preklad,
+                druhy_pokus=oprava.preklad,
+                chybne_terminy="; ".join(oprava.terminy),
+                prijata=oprava.prijata,
+            )
+            if oprava.prijata:
+                preklad = oprava.preklad
+                odpoved_doslovne = oprava.odpoved
 
     cas = time.perf_counter()
     validace = zvaliduj_preklad(

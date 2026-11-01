@@ -157,7 +157,7 @@ function VolbaModelu({
         {stav.dostupne_modely.map((m) => (
           <option key={m} value={m}>
             {m}
-            {m === stav.vychozi_model ? " — výchozí" : ""}
+            {m === stav.vychozi_model ? " - výchozí" : ""}
           </option>
         ))}
       </select>
@@ -178,7 +178,7 @@ function UkazatelModelu({ stav }: { stav: StavSystemu }) {
     return (
       <span
         className="odznak-chyba"
-        title="Služba Ollama neběží — překlad nebude funkční."
+        title="Služba Ollama neběží - překlad nebude funkční."
       >
         Ollama neběží
       </span>
@@ -213,9 +213,9 @@ function UkazatelModelu({ stav }: { stav: StavSystemu }) {
         : overeno === "v_poradku"
           ? "model ověřen"
           : overeno === "varovani"
-            ? "model — výhrady"
+            ? "model - výhrady"
             : overeno === "chyba"
-              ? "model — chyba"
+              ? "model - chyba"
               : "ověřit model"}
     </button>
   );

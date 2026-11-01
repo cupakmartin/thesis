@@ -333,6 +333,8 @@ export interface KontrolaTerminu {
   dodrzen: boolean;
   nespravna_varianta: string;
   nespravna_varianta_pouzita: boolean;
+  chybne_tvary: [string, string][];
+  odvozeny_tvar: string;
 }
 
 export interface Validace {
@@ -340,6 +342,7 @@ export interface Validace {
   pocet_ocekavanych: number;
   pocet_dodrzenych: number;
   pocet_nespravnych_variant: number;
+  pocet_identifikatoru: number;
   identifikatory_zachovany: boolean;
   chybejici_identifikatory: string[];
   varovani: string[];
@@ -360,8 +363,26 @@ export interface VysledekPrekladu {
   doba_vyhledani_s: number;
   doba_generovani_s: number;
   systemova_instrukce: string;
+  oprava: OpravaPrekladu | null;
   nalezene_terminy: NalezenyTermin[];
   validace: Validace;
+}
+
+export interface OpravaPrekladu {
+  prijata: boolean;
+  terminy: string[];
+  prvni_pokus: string;
+  druhy_pokus: string;
+  systemova_instrukce: string;
+  doba_s: number;
+}
+
+export interface ProblemUseku {
+  termin_zdroj: string;
+  termin_cil: string;
+  dodrzen: boolean;
+  nespravna_varianta: string;
+  chybne_tvary: [string, string][];
 }
 
 export interface StavNacitani {
@@ -393,6 +414,9 @@ export interface UsekDokumentu {
   doba_s: number;
   pocet_ocekavanych: number;
   pocet_dodrzenych: number;
+  problemy: ProblemUseku[];
+  chybejici_identifikatory: string[];
+  prvni_pokus: string;
   varovani: string[];
 }
 
@@ -405,8 +429,11 @@ export interface HotovyDokument {
   mira_dodrzeni_glosare: number;
   pocet_ocekavanych: number;
   pocet_dodrzenych: number;
+  pocet_nespravnych_variant: number;
+  pocet_identifikatoru: number;
   identifikatory_zachovany: boolean;
   chybejici_identifikatory: string[];
+  pocet_opravenych: number;
   varovani: string[];
 }
 
@@ -459,6 +486,27 @@ export interface UdalostMIF {
   chyba: string | null;
 }
 
+export interface StatistikaPrekladu {
+  pocet: number;
+  pocet_s_terminy: number;
+  ocekavano: number;
+  dodrzeno: number;
+  nespravnych_variant: number;
+  prumerne_dodrzeni: number;
+}
+
+export interface PosledniPreklad {
+  id: number;
+  vytvoreno: string;
+  zdroj: string;
+  preklad: string;
+  zdrojovy_jazyk: string;
+  cilovy_jazyk: string;
+  pouzity_glosar: boolean;
+  model: string;
+  mira_dodrzeni: number | null;
+}
+
 export interface Prehled {
   katalog: {
     pocet_polozek: number;
@@ -466,6 +514,18 @@ export interface Prehled {
     podle_komoditni_skupiny: { nazev: string; pocet: number }[];
     podle_iso_tridy: { nazev: string; pocet: number }[];
     podle_jazyka: { nazev: string; pocet: number }[];
+    kvalita: {
+      bez_popisu: number;
+      bez_skupiny: number;
+      bez_iso_tridy: number;
+      se_shodnym_popisem: number;
+      shodnych_popisu: number;
+    };
+    nazev_souboru: string;
+    zdroj: string;
+    importovano: string;
+    pocet_sloupcu: number;
+    sloupec_skupiny: string;
   };
   posledni_beh: Beh | null;
   slucovani: {
@@ -477,7 +537,14 @@ export interface Prehled {
   };
   preklady: {
     pocet_prekladu: number;
-    podle_glosare: Record<string, { pocet: number; prumerne_dodrzeni: number }>;
+    podle_glosare: Partial<Record<"s glosářem" | "bez glosáře", StatistikaPrekladu>>;
+    posledni: PosledniPreklad[];
+  };
+  glosar: {
+    celkem: number;
+    neovereno: number;
+    kategorii: number;
+    pokryti: Record<string, number>;
   };
 }
 

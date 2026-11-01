@@ -139,5 +139,5 @@ class TestEmbeddingy:
 
         spravce = SpravceEmbeddingu()
         assert spravce.stav == "nenacten"
-        spravce._model = object()
+        setattr(spravce, "_model", object())
         assert spravce.stav == "pripraven"

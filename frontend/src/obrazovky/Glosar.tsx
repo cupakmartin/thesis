@@ -471,7 +471,7 @@ function DialogTerminu({
             <div className="flex items-baseline justify-between gap-2 mb-1.5">
               <p className="stitek-pole mb-0">Termín *</p>
               <p className={`text-xs ${chybiJazyky ? "text-chyba" : "text-textTlumeny"}`}>
-                vyplněno {pocetVyplnenych} z {jazyky.length} — alespoň {MIN_JAZYKU}
+                vyplněno {pocetVyplnenych} z {jazyky.length} - alespoň {MIN_JAZYKU}
               </p>
             </div>
             <div className="grid sm:grid-cols-2 gap-x-3 gap-y-2.5">

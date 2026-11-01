@@ -10,7 +10,7 @@ MAX_ZNAKU_DOKUMENTU = 100_000
 MAX_VELIKOST_PDF = 15 * 1024 * 1024
 
 ZNACKA_SEZNAMU = re.compile(
-    r"^(?:[-–—•●◦▪■□‣⁃∙➢✓✔*·►]|\(?\d{1,3}(?:\.\d{1,3})*[.)]|\(?[a-z]\))\s+"
+    r"^(?:[-–-•●◦▪■□‣⁃∙➢✓✔*·►]|\(?\d{1,3}(?:\.\d{1,3})*[.)]|\(?[a-z]\))\s+"
 )
 
 ODRAZKA_PISMA_SYMBOL = re.compile(r"^[-]\s*")
@@ -65,7 +65,7 @@ def vytez_text_z_pdf(data: bytes) -> TextDokumentu:
     text = normalizuj_text_stranek(stranky)
     if not SLOVO.search(text):
         raise ChybaDokumentu(
-            "PDF neobsahuje textovou vrstvu — pravděpodobně jde o naskenovaný "
+            "PDF neobsahuje textovou vrstvu - pravděpodobně jde o naskenovaný "
             "dokument. Rozpoznávání textu z obrázku (OCR) není součástí řešení."
         )
     return TextDokumentu(text=text, pocet_stran=len(stranky))
@@ -99,11 +99,11 @@ def _je_pokracovani(predchozi: str, radek: str, plna_sirka: float) -> bool:
 def normalizuj_text_stranek(stranky: list[str]) -> str:
     radky_stran = []
     for stranka in stranky:
-        radky = [
+        ocistene = [
             ODRAZKA_PISMA_SYMBOL.sub("• ", re.sub(r"[ \t]{2,}", " ", r).strip())
             for r in stranka.splitlines()
         ]
-        radky_stran.append([r for r in radky if r and not CISLO_STRANY.match(r)])
+        radky_stran.append([r for r in ocistene if r and not CISLO_STRANY.match(r)])
 
     okraje = _opakovane_okraje(radky_stran)
     videne_okraje: set[str] = set()

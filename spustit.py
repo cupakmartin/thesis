@@ -91,7 +91,7 @@ def main() -> None:
             print(f"    POZOR: model {konfigurace.model_llm} není nainstalován. "
                   f"Spusťte: ollama pull {konfigurace.model_llm}")
     else:
-        print("  Ollama          : NEBĚŽÍ — překlad nebude funkční.")
+        print("  Ollama          : NEBĚŽÍ - překlad nebude funkční.")
         print("                    Spusťte službu Ollama a zkuste znovu.")
 
     adresa = f"http://{argumenty.host}:{argumenty.port}"

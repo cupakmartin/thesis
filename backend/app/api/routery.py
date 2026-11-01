@@ -35,11 +35,12 @@ from app.jadro.duplicity import (
 )
 from app.jadro.dokument import MAX_VELIKOST_PDF, ChybaDokumentu, vytez_text_z_pdf
 from app.jadro.glosar import glosar
-from app.jadro.jazyky import JAZYKY
+from app.jadro.jazyky import JAZYKY, KODY_JAZYKU
 from app.jadro.llm import OllamaPoskytovatel
 from app.jadro.rag import PozadavekPrekladu
 from app.jadro.taxonomie import zarad_pravidlove
 from app.sluzby.deduplikace import sluzba_deduplikace
+from app.sluzby.import_katalogu import metadata as metadata_katalogu
 from app.sluzby.katalog import FiltrKatalogu, sluzba_katalogu
 from app.sluzby.glosar_sprava import (
     ChybaGlosare,
@@ -131,11 +132,34 @@ def kontrola_modelu(vcetne_prekladu: bool = True) -> dict[str, Any]:
 @router_system.get("/prehled")
 def prehled() -> dict[str, Any]:
     katalog = sluzba_katalogu()
+    beh = sluzba_deduplikace().posledni_beh()
+    meta = metadata_katalogu()
+    sloupce = meta["sloupce"] if meta else []
+    polozky_glosare = glosar().polozky
     return {
-        "katalog": katalog.statistiky(),
-        "posledni_beh": sluzba_deduplikace().posledni_beh(),
-        "slucovani": sluzba_slucovani().statistiky(),
+        "katalog": {
+            **katalog.statistiky(),
+            "kvalita": katalog.kvalita(),
+            "nazev_souboru": meta["nazev_souboru"] if meta else "",
+            "zdroj": meta["zdroj"] if meta else "",
+            "importovano": meta["importovano"] if meta else "",
+            "pocet_sloupcu": len(sloupce),
+            "sloupec_skupiny": next(
+                (s["nazev"] for s in sloupce if s.get("role") == "skupina"), ""
+            ),
+        },
+        "posledni_beh": beh,
+        "slucovani": sluzba_slucovani().statistiky(beh["id"] if beh else None),
         "preklady": sluzba_prekladu().statistiky(),
+        "glosar": {
+            "celkem": len(polozky_glosare),
+            "neovereno": sum(1 for p in polozky_glosare if p.strojove),
+            "kategorii": len({p.kategorie for p in polozky_glosare if p.kategorie}),
+            "pokryti": {
+                kod: sum(1 for p in polozky_glosare if p.termin(kod))
+                for kod in KODY_JAZYKU
+            },
+        },
     }
 
 router_polozky = APIRouter(prefix="/polozky", tags=["Katalog"])
@@ -437,6 +461,14 @@ def prelozi_text(pozadavek: PozadavekPrekladuAPI) -> dict[str, Any]:
         "doba_vyhledani_s": round(vysledek.doba_vyhledani_s, 3),
         "doba_generovani_s": round(vysledek.doba_generovani_s, 3),
         "systemova_instrukce": vysledek.systemova_instrukce,
+        "oprava": None if vysledek.oprava is None else {
+            "prijata": vysledek.oprava.prijata,
+            "terminy": list(vysledek.oprava.terminy),
+            "prvni_pokus": vysledek.prvni_pokus or vysledek.preklad,
+            "druhy_pokus": vysledek.oprava.preklad,
+            "systemova_instrukce": vysledek.oprava.systemova_instrukce,
+            "doba_s": round(vysledek.oprava.doba_s, 3),
+        },
         "nalezene_terminy": [
             {
                 "id": n.polozka.id,
@@ -457,6 +489,7 @@ def prelozi_text(pozadavek: PozadavekPrekladuAPI) -> dict[str, Any]:
             "pocet_ocekavanych": validace.pocet_ocekavanych,
             "pocet_dodrzenych": validace.pocet_dodrzenych,
             "pocet_nespravnych_variant": validace.pocet_nespravnych_variant,
+            "pocet_identifikatoru": validace.pocet_identifikatoru,
             "identifikatory_zachovany": validace.identifikatory_zachovany,
             "chybejici_identifikatory": validace.chybejici_identifikatory,
             "varovani": validace.varovani,
@@ -470,6 +503,8 @@ def prelozi_text(pozadavek: PozadavekPrekladuAPI) -> dict[str, Any]:
                     "dodrzen": k.dodrzen,
                     "nespravna_varianta": k.nespravna_varianta,
                     "nespravna_varianta_pouzita": k.nespravna_varianta_pouzita,
+                    "chybne_tvary": [list(dvojice) for dvojice in k.chybne_tvary],
+                    "odvozeny_tvar": k.odvozeny_tvar,
                 }
                 for k in validace.kontroly
             ],

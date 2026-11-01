@@ -57,6 +57,7 @@ class Nastaveni(BaseSettings):
     temperature: float = Field(default=0.1, ge=0.0, le=2.0)
     max_tokenu_odpovedi: int = 2048
     kontext_modelu: int = Field(default=4096, ge=2048)
+    oprava_podle_validace: bool = True
     predehrat_modely: bool = True
     udrzet_model_v_pameti: str = "30m"
 

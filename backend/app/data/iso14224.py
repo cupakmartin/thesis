@@ -72,9 +72,9 @@ TRIDY_PODLE_KODU: dict[str, TridaZarizeni] = {t.kod: t for t in TRIDY_ZARIZENI}
 DRUHY_PORUCH: tuple[tuple[str, str, str], ...] = (
     ("AIR", "Abnormal instrument reading", "Abnormální údaj přístroje"),
     ("BRD", "Breakdown", "Havárie"),
-    ("ELF", "External leakage — fuel", "Vnější únik — palivo"),
-    ("ELP", "External leakage — process medium", "Vnější únik — procesní médium"),
-    ("ELU", "External leakage — utility medium", "Vnější únik — pomocné médium"),
+    ("ELF", "External leakage - fuel", "Vnější únik - palivo"),
+    ("ELP", "External leakage - process medium", "Vnější únik - procesní médium"),
+    ("ELU", "External leakage - utility medium", "Vnější únik - pomocné médium"),
     ("ERO", "Erratic output", "Kolísavý výstup"),
     ("FTS", "Fail to start on demand", "Nespuštění na vyžádání"),
     ("HIO", "High output", "Zvýšený výstup"),

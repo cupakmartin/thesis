@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 ZPUSOB_PRIMY = "přímý výskyt"
 ZPUSOB_VEKTOROVY = "vektorové vyhledávání"
+KATEGORIE_DRUHU_PORUCHY = "ISO 14224 - druh poruchy"
+KATEGORIE_UDRZBOVE_CINNOSTI = "ISO 14224 - údržbová činnost"
 
 
 def _ocisti(hodnoty: dict[str, str] | None) -> dict[str, str]:
@@ -74,6 +76,16 @@ class PolozkaGlosare:
     @property
     def jazyky(self) -> list[str]:
         return [k for k in KODY_JAZYKU if k in self.terminy]
+
+    @property
+    def je_udrzbova_cinnost(self) -> bool:
+        return self.kategorie == KATEGORIE_UDRZBOVE_CINNOSTI
+
+    @property
+    def jen_s_velkym_pismenem(self) -> bool:
+        return self.kategorie == KATEGORIE_DRUHU_PORUCHY and all(
+            len(t.split()) == 1 for t in self.terminy.values()
+        )
 
     @property
     def termin_en(self) -> str:
@@ -219,6 +231,13 @@ class Glosar:
                 vzor = r"\b" + re.escape(tvar) + r"\w{0,3}\b"
             for shoda in re.finditer(vzor, normalizovany):
                 for poradi in indexy:
+                    if (
+                        self._polozky[poradi].jen_s_velkym_pismenem
+                        and not obsahuje_cjk(tvar)
+                        and len(normalizovany) == len(text)
+                        and not text[shoda.start()].isupper()
+                    ):
+                        continue
                     vyskyty.append((shoda.start(), shoda.end(), poradi, tvar))
 
         vyskyty.sort(key=lambda v: (-(v[1] - v[0]), v[0]))

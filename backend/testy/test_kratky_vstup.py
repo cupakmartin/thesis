@@ -173,6 +173,7 @@ class TestVetnyRezim:
             text="Remove the cover. " * 40, pouzit_glosar=False))
         kratky, dlouhy = (v["max_tokenu"] for v in stub.zaznamenane_parametry)
 
+        assert kratky is not None and dlouhy is not None
         assert kratky < dlouhy
         assert kratky <= 256
 

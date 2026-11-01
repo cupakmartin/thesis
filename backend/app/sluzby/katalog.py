@@ -168,6 +168,33 @@ class SluzbaKatalogu:
             "podle_jazyka": podle_jazyka,
         }
 
+    def kvalita(self) -> dict[str, int]:
+        with pripoj(pouze_cteni=True) as spojeni:
+            radek = spojeni.execute(
+                """
+                SELECT SUM(TRIM(description) = ''),
+                       SUM(TRIM(commodity_group) = ''),
+                       SUM(TRIM(iso_class) = '')
+                FROM polozky
+                """
+            ).fetchone()
+            shodne = spojeni.execute(
+                """
+                SELECT COALESCE(SUM(pocet), 0), COUNT(*) FROM (
+                    SELECT COUNT(*) AS pocet FROM polozky
+                    WHERE TRIM(description) <> ''
+                    GROUP BY LOWER(TRIM(description)) HAVING COUNT(*) > 1
+                )
+                """
+            ).fetchone()
+        return {
+            "bez_popisu": int(radek[0] or 0),
+            "bez_skupiny": int(radek[1] or 0),
+            "bez_iso_tridy": int(radek[2] or 0),
+            "se_shodnym_popisem": int(shodne[0] or 0),
+            "shodnych_popisu": int(shodne[1] or 0),
+        }
+
     def zaznamy(self) -> list[ZaznamPolozky]:
         self._zajisti_zaznamy()
         return self._zaznamy

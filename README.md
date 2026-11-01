@@ -12,7 +12,7 @@ V katalogu se může stejný díl objevit několikrát: pod jiným názvem, v ji
 
 Katalog lze na obrazovce *Katalog* vygenerovat jako testovací, nebo importovat z vlastního souboru CSV s libovolnými sloupci. Při importu se určí, který sloupec nese ID, popis, jazyk a případně skupinu; ostatní sloupce se převezmou beze změny. Aktivní je vždy jeden katalog.
 
-Druhou částí je překlad technických textů mezi angličtinou, češtinou, němčinou, italštinou, španělštinou, francouzštinou, čínštinou a japonštinou — od jednotlivých slov po celé pracovní postupy včetně obsahu PDF. Před překladem aplikace vyhledá související termíny ve firemním glosáři a předá je jazykovému modelu jako kontext. Tento postup, označovaný jako Retrieval-Augmented Generation (RAG), má omezit situace, kdy model přeloží stejný odborný termín pokaždé jinak. Termín se do glosáře zadává alespoň ve dvou jazycích, ostatní doplní jazykový model a označí je jako neověřené.
+Druhou částí je překlad technických textů mezi angličtinou, češtinou, němčinou, italštinou, španělštinou, francouzštinou, čínštinou a japonštinou - od jednotlivých slov po celé pracovní postupy včetně obsahu PDF. Před překladem aplikace vyhledá související termíny ve firemním glosáři a předá je jazykovému modelu jako kontext. Tento postup, označovaný jako Retrieval-Augmented Generation (RAG), má omezit situace, kdy model přeloží stejný odborný termín pokaždé jinak. Termín se do glosáře zadává alespoň ve dvou jazycích, ostatní doplní jazykový model a označí je jako neověřené.
 
 Na obrazovce *Průběh zpracování* je možné prohlédnout jednotlivé kroky překladu, nalezené termíny, sestavený prompt i původní odpověď modelu.
 

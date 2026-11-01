@@ -153,7 +153,7 @@ class TestRozdeleniNaUseky:
         assert useky[0].text == "5 screws are required."
 
     def test_radek_bez_slov_se_nepreklada(self):
-        useky = rozdel_na_useky("DN50 PN16\n6204-2RS\n—\nCheck the seal.")
+        useky = rozdel_na_useky("DN50 PN16\n6204-2RS\n-\nCheck the seal.")
         assert [u.prelozit for u in useky] == [False, False, False, True]
 
     def test_dlouhy_odstavec_se_deli_na_hranicich_vet(self):

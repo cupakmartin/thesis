@@ -157,8 +157,8 @@ class TestPoradiVeFronte:
         """Vyjmutí člena nesmí skupinu přesunout jinam ve frontě.
 
         Skupina o třech členech se vyjmutím zmenší na dvojici. Kdyby se fronta
-        řadila přímo podle velikosti, propadla by za všechny ostatní dvojice —
-        u katalogu pěti tisíc položek o stovky stránek dál — a uživateli by
+        řadila přímo podle velikosti, propadla by za všechny ostatní dvojice -
+        u katalogu pěti tisíc položek o stovky stránek dál - a uživateli by
         zmizela z očí právě ve chvíli, kdy ji rozpracoval.
         """
         from app.db import pripoj

@@ -17,31 +17,6 @@ import {
   useOznameni,
 } from "../komponenty";
 
-const UKAZKY = [
-  "Replace the impeller and seal on the centrifugal pump.",
-  "Tighten the nut on the mounting bolt to 45 Nm.",
-  "Install check valve DN50 PN16 and replace the seal kit.",
-  "Check the gate valve for internal leakage and inspect the shaft seal.",
-];
-
-const UKAZKOVA_SLOVA = ["Nut", "Ladder", "Safety goggles", "Torque wrench"];
-
-const UKAZKOVY_POSTUP = `Centrifugal pump seal replacement
-
-WARNING: Disconnect power before servicing.
-
-Tools required:
-1. Torque wrench
-2. Ring spanner 17 mm
-3. Safety goggles
-
-Procedure
-1. Close the suction and discharge valves and drain the pump casing.
-2. Remove the eight bolts of the bearing housing cover and lift the cover carefully.
-3. Replace the mechanical seal and the O-ring. Do not reuse the old gasket.
-4. Tighten the bolts crosswise to 45 Nm.
-5. Open the valves slowly and check the seal for leaks.`;
-
 const MAX_ZNAKU_JEDNOHO = 1000;
 const MAX_ZNAKU_DOKUMENTU = 100_000;
 
@@ -90,7 +65,7 @@ export default function Preklad() {
   const stav = useNacti(() => api.system.stav(), []);
   const jazyky = useJazyky();
 
-  const [text, nastavText] = useState(UKAZKY[0]);
+  const [text, nastavText] = useState("");
   const [zdrojovy, nastavZdrojovy] = useState("en");
   const [cilovy, nastavCilovy] = useState("cs");
   const [model, nastavModel] = useState<string>("");
@@ -116,12 +91,6 @@ export default function Preklad() {
     nastavSGlosarem(null);
     nastavBezGlosare(null);
     nastavDokument(null);
-  };
-
-  const vlozText = (novy: string) => {
-    nastavText(novy);
-    nastavInfoPdf(null);
-    vycistiVysledky();
   };
 
   const prohodJazyky = () => {
@@ -312,7 +281,7 @@ export default function Preklad() {
                 )}
                 {jeDokument && !prilisDlouhy && (
                   <p className="text-xs text-textTlumeny mt-1">
-                    Text bude přeložen jako dokument — po odstavcích, nadpisech
+                    Text bude přeložen jako dokument - po odstavcích, nadpisech
                     a položkách seznamu, se zachováním struktury.
                   </p>
                 )}
@@ -338,7 +307,7 @@ export default function Preklad() {
                       onChange={(e) => nastavModel(e.target.value)}
                     >
                       <option value="">
-                        výchozí ({stav.data?.aktivni_model ?? "—"})
+                        výchozí ({stav.data?.aktivni_model ?? "-"})
                       </option>
                       {stav.data?.dostupne_modely.map((m) => (
                         <option key={m} value={m}>
@@ -349,7 +318,7 @@ export default function Preklad() {
                   </div>
                   <div>
                     <label className="stitek-pole">
-                      Temperature — {temperature.toFixed(2)}
+                      Temperature - {temperature.toFixed(2)}
                     </label>
                     <input
                       type="range"
@@ -370,7 +339,7 @@ export default function Preklad() {
 
               <label
                 className={`flex items-center gap-2 text-sm cursor-pointer ${jeDokument ? "text-textSlaby" : "text-textTlumeny"}`}
-                title={jeDokument ? "U dokumentu se srovnání neprovádí — zdvojnásobilo by dobu překladu." : undefined}
+                title={jeDokument ? "U dokumentu se srovnání neprovádí - zdvojnásobilo by dobu překladu." : undefined}
               >
                 <input
                   type="checkbox"
@@ -404,29 +373,6 @@ export default function Preklad() {
                       : "Přeložit"}
                 </button>
               )}
-            </div>
-          </Panel>
-
-          <Panel nadpis="Ukázky">
-            <div className="space-y-2">
-              {UKAZKY.map((u) => (
-                <TlacitkoUkazky key={u} text={u} naVyber={vlozText} />
-              ))}
-              <div className="flex flex-wrap gap-1.5 pt-1">
-                {UKAZKOVA_SLOVA.map((u) => (
-                  <button
-                    key={u}
-                    className="rounded-xs border border-obrys bg-plocha2 px-2 py-1 text-[0.8125rem] text-textTlumeny hover:border-akcent hover:text-akcent"
-                    onClick={() => vlozText(u)}
-                  >
-                    {u}
-                  </button>
-                ))}
-              </div>
-              <TlacitkoUkazky
-                text="Pracovní postup — výměna ucpávky čerpadla (dokument)"
-                naVyber={() => vlozText(UKAZKOVY_POSTUP)}
-              />
             </div>
           </Panel>
         </div>
@@ -517,14 +463,28 @@ export default function Preklad() {
                       se nesestavoval.
                     </p>
                   ) : zobrazitPrompt ? (
-                    <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-xs border border-obrys bg-plocha2 p-3.5 font-mono text-[0.7rem] leading-relaxed text-textTlumeny">
-                      {sGlosarem.systemova_instrukce}
-                    </pre>
+                    <div className="space-y-3">
+                      <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-xs border border-obrys bg-plocha2 p-3.5 font-mono text-[0.7rem] leading-relaxed text-textTlumeny">
+                        {sGlosarem.systemova_instrukce}
+                      </pre>
+                      {sGlosarem.oprava && (
+                        <div>
+                          <p className="stitek-pole">
+                            Instrukce 2. pokusu (oprava podle kontroly)
+                          </p>
+                          <pre className="max-h-96 overflow-auto whitespace-pre-wrap rounded-xs border border-obrys bg-plocha2 p-3.5 font-mono text-[0.7rem] leading-relaxed text-textTlumeny">
+                            {sGlosarem.oprava.systemova_instrukce.slice(
+                              sGlosarem.systemova_instrukce.length,
+                            ).trim()}
+                          </pre>
+                        </div>
+                      )}
+                    </div>
                   ) : (
                     <p className="text-sm text-textTlumeny">
                       Systémová instrukce a překládaný text jsou modelu předány jako
                       oddělené zprávy. Text je uzavřen do vymezeného bloku označeného
-                      za data, nikoli za instrukce — tím je omezeno riziko vložení
+                      za data, nikoli za instrukce - tím je omezeno riziko vložení
                       cizího pokynu do vstupu (kap. 2.6.4).
                       {sGlosarem.zpusob === "krátký výraz" &&
                         " Krátký vstup dostává stručnou instrukci bez příkladů, aby je model nezopakoval místo překladu."}
@@ -542,20 +502,16 @@ export default function Preklad() {
   );
 }
 
-function TlacitkoUkazky({
-  text,
-  naVyber,
-}: {
-  text: string;
-  naVyber: (text: string) => void;
-}) {
+function popisChybnychTvaru(tvary: [string, string][]): string {
+  if (tvary.length === 0) return "";
+  return ` - v překladu ${tvary.map(([chybne, spravne]) => `„${chybne}“ místo tvaru od „${spravne}“`).join(", ")}`;
+}
+
+function maProblem(u: UsekDokumentu): boolean {
   return (
-    <button
-      className="w-full text-left rounded-xs border border-obrys bg-plocha2 px-3 py-2 text-[0.8125rem] leading-snug text-textTlumeny transition-colors hover:border-akcent hover:bg-akcentTlumeny hover:text-akcent"
-      onClick={() => naVyber(text)}
-    >
-      {text}
-    </button>
+    u.problemy.length > 0 ||
+    u.chybejici_identifikatory.length > 0 ||
+    u.varovani.length > 0
   );
 }
 
@@ -570,10 +526,13 @@ function PrekladDokumentu({
   naKopirovani: (obsah: string) => void;
   naStazeni: (obsah: string) => void;
 }) {
+  const [vsechnyUseky, nastavVsechnyUseky] = useState(false);
   const hotovo = stav.hotovo;
   const prelozeno = stav.useky.length;
   const podil = stav.celkem ? prelozeno / stav.celkem : 0;
   const zGlosare = stav.useky.filter((u) => u.zpusob === "glosář").length;
+  const problemove = stav.useky.filter(maProblem);
+  const zobrazene = vsechnyUseky ? stav.useky : problemove;
   const nahled = hotovo
     ? hotovo.preklad
     : stav.useky.map((u) => u.odrazka + u.preklad).join("\n");
@@ -622,21 +581,38 @@ function PrekladDokumentu({
               className={
                 hotovo.mira_dodrzeni_glosare >= 1 ? "odznak-uspech" : "odznak-chyba"
               }
+              title="Kolikrát byl termín glosáře, který se vyskytl ve zdrojovém úseku, správně použit i v překladu. Nedodržené výskyty jsou vypsány v tabulce úseků."
             >
               glosář{" "}
               {hotovo.pocet_ocekavanych > 0
-                ? `${hotovo.pocet_dodrzenych}/${hotovo.pocet_ocekavanych} (${formatujProcenta(hotovo.mira_dodrzeni_glosare, 0)})`
-                : "—"}
+                ? `dodržen ${hotovo.pocet_dodrzenych} z ${hotovo.pocet_ocekavanych} (${formatujProcenta(hotovo.mira_dodrzeni_glosare, 0)})`
+                : "- žádný termín v textu"}
             </span>
-            <span
-              className={
-                hotovo.identifikatory_zachovany ? "odznak-uspech" : "odznak-chyba"
-              }
-            >
-              {hotovo.identifikatory_zachovany
-                ? "identifikátory zachovány"
-                : `ztraceno: ${hotovo.chybejici_identifikatory.join(", ")}`}
-            </span>
+            {hotovo.pocet_nespravnych_variant > 0 && (
+              <span className="odznak-chyba">
+                {hotovo.pocet_nespravnych_variant}× zakázaná varianta
+              </span>
+            )}
+            {hotovo.pocet_identifikatoru > 0 && (
+              <span
+                className={
+                  hotovo.identifikatory_zachovany ? "odznak-uspech" : "odznak-chyba"
+                }
+                title="Čísla dílů, rozměry, závity a jmenovité hodnoty (např. DN50, M20x1.5, 6204) musí v překladu zůstat beze změny."
+              >
+                {hotovo.identifikatory_zachovany
+                  ? `identifikátory zachovány (${hotovo.pocet_identifikatoru})`
+                  : `v překladu chybí: ${hotovo.chybejici_identifikatory.join(", ")}`}
+              </span>
+            )}
+            {hotovo.pocet_opravenych > 0 && (
+              <span
+                className="odznak-neutralni"
+                title="Úseky, v nichž kontrola zjistila nedodržený termín a model je přeložil podruhé s upozorněním na chybu."
+              >
+                {hotovo.pocet_opravenych}× opraveno 2. pokusem
+              </span>
+            )}
             {zGlosare > 0 && (
               <span
                 className="odznak-neutralni"
@@ -660,50 +636,102 @@ function PrekladDokumentu({
 
       {stav.useky.length > 0 && (
         <Panel
-          nadpis="Úseky"
-          popis="Každý odstavec, nadpis a položka seznamu se překládá samostatně; odstavec se nedělí na věty, aby nepřišel o kontext."
+          nadpis={vsechnyUseky ? "Všechny úseky" : "Úseky s nálezem kontroly"}
+          popis={
+            vsechnyUseky
+              ? "Každý odstavec, nadpis a položka seznamu se překládá samostatně; odstavec se nedělí na věty, aby nepřišel o kontext."
+              : `Úseky, v nichž kontrola našla nedodržený termín, zakázanou variantu, chybějící identifikátor nebo nepoměr délky - ${problemove.length} z ${prelozeno}.`
+          }
+          akce={
+            <button
+              className="tlacitko-tichy text-xs"
+              onClick={() => nastavVsechnyUseky(!vsechnyUseky)}
+            >
+              {vsechnyUseky ? "Jen úseky s nálezem" : "Zobrazit všechny úseky"}
+            </button>
+          }
           bezOdsazeni
         >
-          <div className="overflow-x-auto">
-            <table className="tabulka">
-              <thead>
-                <tr>
-                  <th className="w-8">#</th>
-                  <th>Zdroj</th>
-                  <th>Překlad</th>
-                  <th>Způsob</th>
-                </tr>
-              </thead>
-              <tbody>
-                {stav.useky.map((u) => (
-                  <tr key={u.poradi}>
-                    <td className="font-mono text-2xs text-textSlaby">{u.poradi}</td>
-                    <td className="text-textTlumeny">{u.zdroj}</td>
-                    <td className="text-text">
-                      {u.preklad}
-                      {u.varovani.map((v, i) => (
-                        <span key={i} className="block text-2xs text-vystraha mt-0.5">
-                          {v}
-                        </span>
-                      ))}
-                    </td>
-                    <td>
-                      <span
-                        className={
-                          u.zpusob === "glosář" ? "odznak-uspech" : "odznak-neutralni"
-                        }
-                      >
-                        {popisZpusobu(u.zpusob)}
-                      </span>
-                    </td>
+          {zobrazene.length === 0 ? (
+            <p className="p-4 text-sm text-textTlumeny">
+              {pracuje
+                ? "Zatím bez nálezu."
+                : "Kontrola v žádném úseku nic nenašla: termíny glosáře jsou dodrženy a identifikátory zachovány."}
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="tabulka">
+                <thead>
+                  <tr>
+                    <th className="w-8">#</th>
+                    <th>Zdroj</th>
+                    <th>Překlad</th>
+                    <th>Nález kontroly</th>
+                    <th>Způsob</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {zobrazene.map((u) => (
+                    <tr key={u.poradi}>
+                      <td className="font-mono text-2xs text-textSlaby">{u.poradi}</td>
+                      <td className="text-textTlumeny">{u.zdroj}</td>
+                      <td className="text-text">
+                        {u.preklad}
+                        {u.prvni_pokus && (
+                          <span className="block text-2xs text-textSlaby mt-1">
+                            1. pokus:{" "}
+                            <span className="line-through">{u.prvni_pokus}</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="min-w-[14rem]">
+                        <NalezyUseku usek={u} />
+                      </td>
+                      <td>
+                        <span
+                          className={
+                            u.zpusob === "glosář" ? "odznak-uspech" : "odznak-neutralni"
+                          }
+                        >
+                          {popisZpusobu(u.zpusob)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Panel>
       )}
     </>
+  );
+}
+
+function NalezyUseku({ usek }: { usek: UsekDokumentu }) {
+  if (!maProblem(usek)) {
+    return <span className="text-xs text-textSlaby">bez nálezu</span>;
+  }
+  return (
+    <ul className="space-y-1 text-xs">
+      {usek.problemy.map((p, i) => (
+        <li key={i} className="text-chyba">
+          {p.nespravna_varianta
+            ? `zakázaná varianta „${p.nespravna_varianta}“ - správně „${p.termin_cil}“`
+            : `nepoužit termín: ${p.termin_zdroj} → „${p.termin_cil}“${popisChybnychTvaru(p.chybne_tvary)}`}
+        </li>
+      ))}
+      {usek.chybejici_identifikatory.length > 0 && (
+        <li className="text-chyba">
+          v překladu chybí: {usek.chybejici_identifikatory.join(", ")}
+        </li>
+      )}
+      {usek.varovani.map((v, i) => (
+        <li key={`v${i}`} className="text-vystraha">
+          {v}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -767,9 +795,23 @@ function TerminyGlosare({ vysledek }: { vysledek: VysledekPrekladu }) {
                   </td>
                   <td>
                     {!kontrola?.ocekavan ? (
-                      <span className="text-textSlaby text-xs">nevyžadováno</span>
+                      <span
+                        className="text-textSlaby text-xs"
+                        title="Termín se ve zdrojovém textu v tomto znění nevyskytuje; model jej dostal jen jako významově blízký kontext."
+                      >
+                        nevyžadováno
+                      </span>
+                    ) : kontrola.nespravna_varianta_pouzita ? (
+                      <span className="text-chyba text-xs">zakázaná varianta</span>
                     ) : kontrola.dodrzen ? (
-                      <span className="text-uspech">
+                      <span
+                        className="text-uspech"
+                        title={
+                          kontrola.odvozeny_tvar
+                            ? `Termín ve zdroji rozvíjí další slovo, překlad jej proto vyjadřuje odvozeným tvarem „${kontrola.odvozeny_tvar}“.`
+                            : undefined
+                        }
+                      >
                         <Ikona.Fajfka velikost={15} />
                       </span>
                     ) : (
@@ -810,8 +852,17 @@ function VysledekPanelu({
           <h2 className="text-sm font-semibold text-text">{nadpis}</h2>
           <p className="text-xs text-textTlumeny mt-0.5">{popis}</p>
         </div>
-        <span className="font-mono text-2xs text-textSlaby whitespace-nowrap">
-          {zGlosare ? "bez modelu" : `${vysledek.doba_generovani_s.toFixed(1)} s`}
+        <span
+          className="font-mono text-2xs text-textSlaby whitespace-nowrap"
+          title={
+            zGlosare
+              ? "Vstup je přesně termínem glosáře; překlad byl převzat z glosáře a jazykový model se nevolal."
+              : "Doba generování jazykovým modelem"
+          }
+        >
+          {zGlosare
+            ? `${vysledek.doba_s.toFixed(2)} s · model nevolán`
+            : `${vysledek.doba_generovani_s.toFixed(1)} s`}
         </span>
       </header>
 
@@ -826,7 +877,7 @@ function VysledekPanelu({
             <span className="font-mono text-sm tabular-nums text-text">
               {v.pocet_ocekavanych > 0
                 ? `${formatujProcenta(v.mira_dodrzeni_glosare, 0)} (${v.pocet_dodrzenych}/${v.pocet_ocekavanych})`
-                : "—"}
+                : "-"}
             </span>
           </div>
           {v.pocet_ocekavanych > 0 && (
@@ -863,22 +914,64 @@ function VysledekPanelu({
                 krátký výraz
               </span>
             )}
-            <span
-              className={
-                v.identifikatory_zachovany ? "odznak-uspech" : "odznak-chyba"
-              }
-              title="Čísla dílů, rozměry a jmenovité hodnoty musí zůstat beze změny."
-            >
-              {v.identifikatory_zachovany
-                ? "identifikátory zachovány"
-                : `ztraceno: ${v.chybejici_identifikatory.join(", ")}`}
-            </span>
+            {v.pocet_identifikatoru > 0 && (
+              <span
+                className={
+                  v.identifikatory_zachovany ? "odznak-uspech" : "odznak-chyba"
+                }
+                title="Čísla dílů, rozměry, závity a jmenovité hodnoty (např. DN50, M20x1.5, 6204) musí v překladu zůstat beze změny."
+              >
+                {v.identifikatory_zachovany
+                  ? `identifikátory zachovány (${v.pocet_identifikatoru})`
+                  : `v překladu chybí: ${v.chybejici_identifikatory.join(", ")}`}
+              </span>
+            )}
             {v.pocet_nespravnych_variant > 0 && (
               <span className="odznak-chyba">
                 {v.pocet_nespravnych_variant}× zakázaná varianta
               </span>
             )}
+            {vysledek.oprava?.prijata && (
+              <span
+                className="odznak-neutralni"
+                title="Kontrola v prvním pokusu našla nedodržený termín; model text přeložil znovu s upozorněním na chybu."
+              >
+                opraveno 2. pokusem
+              </span>
+            )}
           </div>
+
+          {(v.kontroly.some((k) => (k.ocekavan && !k.dodrzen) || k.nespravna_varianta_pouzita) ||
+            vysledek.oprava) && (
+            <ul className="space-y-1 text-xs">
+              {v.kontroly
+                .filter((k) => (k.ocekavan && !k.dodrzen) || k.nespravna_varianta_pouzita)
+                .map((k) => (
+                  <li key={k.termin_zdroj} className="text-chyba">
+                    {k.nespravna_varianta_pouzita
+                      ? `zakázaná varianta „${k.nespravna_varianta}“ - glosář: ${k.termin_zdroj} → „${k.termin_cil}“`
+                      : `nepoužit termín: ${k.termin_zdroj} → „${k.termin_cil}“${popisChybnychTvaru(k.chybne_tvary)}`}
+                  </li>
+                ))}
+              {vysledek.oprava && (
+                <li className="text-textTlumeny">
+                  {vysledek.oprava.prijata ? (
+                    <>
+                      1. pokus:{" "}
+                      <span className="line-through">{vysledek.oprava.prvni_pokus}</span>{" "}
+                      - nedodržen termín {vysledek.oprava.terminy.join(", ")}
+                    </>
+                  ) : (
+                    <>
+                      Opakovaný překlad s upozorněním na termín{" "}
+                      {vysledek.oprava.terminy.join(", ")} výsledek nezlepšil, ponechán
+                      první pokus.
+                    </>
+                  )}
+                </li>
+              )}
+            </ul>
+          )}
 
           {v.varovani.length > 0 && (
             <ul className="space-y-1 pt-1">

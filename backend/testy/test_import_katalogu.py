@@ -23,6 +23,14 @@ def prostredi(tmp_path, monkeypatch):
     nastaveni.cache_clear()
 
 
+def _metadata() -> dict:
+    from app.sluzby.import_katalogu import metadata
+
+    meta = metadata()
+    assert meta is not None
+    return meta
+
+
 def _polozky() -> list[dict]:
     from app.db import pripoj
 
@@ -62,7 +70,7 @@ class TestImport:
         assert polozky[0]["description"] == "Ložisko kuličkové 6204 2RS"
         assert [p["lang_code"] for p in polozky] == ["CS", "EN"]
         assert json.loads(polozky[0]["data_json"])["Dodavatel dílu"] == "Alfa"
-        meta = metadata()
+        meta = _metadata()
         assert [s["nazev"] for s in meta["sloupce"]] == ["Kód", "Název", "Doplněk", "Jazyk", "Dodavatel dílu"]
         assert meta["nazev_souboru"] == "moje.csv"
 
@@ -73,7 +81,7 @@ class TestImport:
         importuj_obsah(obsah, _nastaveni(obsah, ma_id=False), "bez_id.csv")
 
         assert [p["itemnum"] for p in _polozky()] == ["0001", "0002"]
-        sloupce = metadata()["sloupce"]
+        sloupce = _metadata()["sloupce"]
         assert sloupce[0]["nazev"] == "ID" and sloupce[0]["role"] == "id"
         assert json.loads(_polozky()[1]["data_json"]) == {"ID": "0002", "popis": "Cerpadlo", "cena": "20"}
 
@@ -204,9 +212,9 @@ class TestGenerovaniAMigrace:
 
         vysledek = generuj(pocet=200)
         assert vysledek["pocet_polozek"] == 200
-        assert metadata()["zdroj"] == "generovany"
+        assert _metadata()["zdroj"] == "generovany"
         assert (prostredi / "vstup" / "ground_truth.csv").exists()
-        role = {s["nazev"]: s["role"] for s in metadata()["sloupce"]}
+        role = {s["nazev"]: s["role"] for s in _metadata()["sloupce"]}
         assert role["ITEMNUM"] == "id" and role["LANGCODE"] == "jazyk"
 
     def test_puvodni_databaze_dostane_metadata(self, prostredi):
@@ -221,7 +229,7 @@ class TestGenerovaniAMigrace:
         assert zajisti_metadata() is True
         data = json.loads(_polozky()[0]["data_json"])
         assert data["DESCRIPTION"] == "Ložisko 6204" and data["MANUFACTURER"] == "SKF"
-        assert metadata()["zdroj"] == "puvodni"
+        assert _metadata()["zdroj"] == "puvodni"
         assert zajisti_metadata() is False
 
 

@@ -83,7 +83,7 @@ export default function MaximoIntegrace() {
           <span className="text-text font-medium">Rozsah simulace.</span> Ověřuje
           se datový formát objektové struktury, tok událostí a tvar rozhraní.
           Chování skutečné instance Maximo Application Suite, její autentizace
-          ani transakční zpracování ověřeny nejsou — licence je mimo rozpočet
+          ani transakční zpracování ověřeny nejsou - licence je mimo rozpočet
           práce. Kód je však napsán tak, aby jej bylo možné napojit na reálnou
           instanci pouhou změnou konfigurace.
         </p>
@@ -182,7 +182,7 @@ export default function MaximoIntegrace() {
               >
                 <p className="text-sm text-text">
                   {odpoved.upozorneni
-                    ? `Systém vrátil upozornění — nalezeno ${String(odpoved.pocet_kandidatu)} podobných položek.`
+                    ? `Systém vrátil upozornění - nalezeno ${String(odpoved.pocet_kandidatu)} podobných položek.`
                     : "Systém nenalezl žádnou podobnou položku."}
                 </p>
               </div>
@@ -259,7 +259,7 @@ export default function MaximoIntegrace() {
                               </span>
                             </td>
                             <td>
-                              <Kod>{u.itemnum ?? "—"}</Kod>
+                              <Kod>{u.itemnum ?? "-"}</Kod>
                             </td>
                             <td className="text-sm">
                               {u.chyba ? (
@@ -271,7 +271,7 @@ export default function MaximoIntegrace() {
                                     : `${pocet} kandidátů`}
                                 </span>
                               ) : (
-                                <span className="text-textSlaby">—</span>
+                                <span className="text-textSlaby">-</span>
                               )}
                             </td>
                           </tr>

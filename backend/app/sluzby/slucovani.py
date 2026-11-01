@@ -212,7 +212,7 @@ class SluzbaSlucovani:
             if len(zbyle) < 2:
                 spojeni.execute("DELETE FROM klastry WHERE id = ?", (klastr_id,))
                 logger.info(
-                    "Skupina %d zrušena — po vyjmutí %s v ní zbyla jediná položka.",
+                    "Skupina %d zrušena - po vyjmutí %s v ní zbyla jediná položka.",
                     klastr_id, itemnum,
                 )
                 return {"klastr_id": klastr_id, "zbylo_clenu": len(zbyle),

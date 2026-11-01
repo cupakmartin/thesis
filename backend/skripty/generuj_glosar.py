@@ -27,7 +27,7 @@ def terminy_z_iso() -> list[TerminGlosare]:
         polozky.append(TerminGlosare(
             termin_en=trida.nazev_en,
             termin_cs=trida.nazev_cs,
-            kategorie="ISO 14224 — třída zařízení",
+            kategorie="ISO 14224 - třída zařízení",
             definice=f"Třída zařízení {trida.kod}, kategorie {trida.kategorie}.",
             zdroj="ISO 14224",
         ))
@@ -36,7 +36,7 @@ def terminy_z_iso() -> list[TerminGlosare]:
         polozky.append(TerminGlosare(
             termin_en=nazev_en,
             termin_cs=nazev_cs,
-            kategorie="ISO 14224 — druh poruchy",
+            kategorie="ISO 14224 - druh poruchy",
             definice=f"Druh poruchy s kódem {kod} podle ISO 14224.",
             zdroj="ISO 14224",
         ))
@@ -45,7 +45,7 @@ def terminy_z_iso() -> list[TerminGlosare]:
         polozky.append(TerminGlosare(
             termin_en=nazev_en,
             termin_cs=nazev_cs,
-            kategorie="ISO 14224 — údržbová činnost",
+            kategorie="ISO 14224 - údržbová činnost",
             definice=f"Kategorie údržbové činnosti s kódem {kod} podle ISO 14224.",
             zdroj="ISO 14224",
         ))
@@ -53,21 +53,21 @@ def terminy_z_iso() -> list[TerminGlosare]:
     polozky.append(TerminGlosare(
         termin_en="failure mode",
         termin_cs="způsob poruchy",
-        kategorie="ISO 14224 — druh poruchy",
+        kategorie="ISO 14224 - druh poruchy",
         definice="Způsob, jakým se porucha projevuje; terminologie dle ISO 14224.",
         zdroj="ISO 14224",
     ))
     polozky.append(TerminGlosare(
         termin_en="failure mechanism",
         termin_cs="mechanismus poruchy",
-        kategorie="ISO 14224 — druh poruchy",
+        kategorie="ISO 14224 - druh poruchy",
         definice="Fyzikální proces vedoucí k poruše; terminologie dle ISO 14224.",
         zdroj="ISO 14224",
     ))
     polozky.append(TerminGlosare(
         termin_en="equipment class",
         termin_cs="třída zařízení",
-        kategorie="ISO 14224 — třída zařízení",
+        kategorie="ISO 14224 - třída zařízení",
         definice="Zařazení zařízení do taxonomie podle ISO 14224.",
         zdroj="ISO 14224",
     ))

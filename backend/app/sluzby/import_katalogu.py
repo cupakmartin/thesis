@@ -157,7 +157,7 @@ def over_nastaveni(obsah: ObsahCsv, nast: NastaveniImportu) -> None:
         return [s for s in nast.sloupce if s.role == role]
 
     if not s_roli(ROLE_POPIS):
-        raise ChybaImportu("Označte alespoň jeden sloupec s popisem položky — ten se porovnává při deduplikaci.")
+        raise ChybaImportu("Označte alespoň jeden sloupec s popisem položky - ten se porovnává při deduplikaci.")
     for role, nazev in ((ROLE_SKUPINA, "skupina"), (ROLE_TRIDA, "třída ISO")):
         if len(s_roli(role)) > 1:
             raise ChybaImportu(f"Roli „{nazev}“ může mít nejvýše jeden sloupec.")

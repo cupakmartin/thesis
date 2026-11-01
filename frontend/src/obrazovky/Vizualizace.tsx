@@ -71,8 +71,8 @@ export default function Vizualizace() {
                 value={metoda}
                 onChange={(e) => nastavMetodu(e.target.value as "pca" | "tsne")}
               >
-                <option value="pca">PCA — rychlé</option>
-                <option value="tsne">t-SNE — přesnější shluky</option>
+                <option value="pca">PCA - rychlé</option>
+                <option value="tsne">t-SNE - přesnější shluky</option>
               </select>
               <select
                 className="pole w-auto py-1 text-[0.8125rem]"
@@ -90,7 +90,7 @@ export default function Vizualizace() {
             <Nacitani
               text={
                 metoda === "tsne"
-                  ? "Počítám t-SNE — může trvat desítky sekund…"
+                  ? "Počítám t-SNE - může trvat desítky sekund…"
                   : "Počítám projekci…"
               }
             />
@@ -178,7 +178,7 @@ export default function Vizualizace() {
               Každý bod je jedna položka katalogu, barva označuje hodnotu
               sloupce „{projekce.data?.barva_podle ?? "skupina"}“. Body ležící blízko sebe mají podobný význam popisu.
               Vzniká-li pro každou skupinu souvislá oblast, znamená to, že model
-              zachycuje význam textu — a právě na tom stojí schopnost rozpoznat
+              zachycuje význam textu - a právě na tom stojí schopnost rozpoznat
               duplicitu napříč jazyky.
             </p>
             {projekce.data?.vysvetlena_variance && (
@@ -191,7 +191,7 @@ export default function Vizualizace() {
                   ).toFixed(1)}{" "}
                   %
                 </span>{" "}
-                celkového rozptylu. Zbytek informace se do roviny nevejde —
+                celkového rozptylu. Zbytek informace se do roviny nevejde -
                 obrázek je proto orientační.
               </p>
             )}
@@ -257,7 +257,7 @@ export default function Vizualizace() {
 
                 <div className="mt-3">
                   <label className="stitek-pole">
-                    Práh — <span className="font-mono">{prah.toFixed(2)}</span>
+                    Práh - <span className="font-mono">{prah.toFixed(2)}</span>
                   </label>
                   <input
                     type="range"
@@ -270,7 +270,7 @@ export default function Vizualizace() {
                   />
                   <p className="mt-1.5 text-xs text-textSlaby">
                     Zvýrazněná část odpovídá dvojicím nad prahem. Rozložení je
-                    spojité — neexistuje mezera, která by práh určila sama.
+                    spojité - neexistuje mezera, která by práh určila sama.
                     Proto je nutná druhá, atributová fáze rozhodování.
                   </p>
                 </div>

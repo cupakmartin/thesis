@@ -137,10 +137,10 @@ export default function Deduplikace() {
                   value={nastaveni.metoda}
                   onChange={(e) => uprav("metoda", e.target.value)}
                 >
-                  <option value="hybridni">hybridní — vážené skóre</option>
-                  <option value="pravidlova">pravidlová — rozhodovací pravidlo</option>
-                  <option value="semanticka">sémantická — pouze kosinová podobnost</option>
-                  <option value="lexikalni">lexikální — pouze porovnání řetězců</option>
+                  <option value="hybridni">hybridní - vážené skóre</option>
+                  <option value="pravidlova">pravidlová - rozhodovací pravidlo</option>
+                  <option value="semanticka">sémantická - pouze kosinová podobnost</option>
+                  <option value="lexikalni">lexikální - pouze porovnání řetězců</option>
                 </select>
                 <p className="mt-1.5 text-xs text-textSlaby">
                   {POPIS_METODY[nastaveni.metoda]}
@@ -166,7 +166,7 @@ export default function Deduplikace() {
 
               <div>
                 <label className="stitek-pole">
-                  Počet nejbližších sousedů — {nastaveni.pocet_sousedu}
+                  Počet nejbližších sousedů - {nastaveni.pocet_sousedu}
                 </label>
                 <input
                   type="range"
@@ -199,7 +199,7 @@ export default function Deduplikace() {
                 />
                 <Prepinac
                   popisek="Omezit na shodnou třídu ISO 14224"
-                  napoveda="Kapitola 2.2.4 — položky různých tříd zařízení nelze sloučit."
+                  napoveda="Kapitola 2.2.4 - položky různých tříd zařízení nelze sloučit."
                   hodnota={nastaveni.omezit_na_tridu_iso}
                   naZmenu={(h) => uprav("omezit_na_tridu_iso", h)}
                 />
@@ -315,7 +315,7 @@ const POPIS_METODY: Record<string, string> = {
   pravidlova:
     "Požadovaná míra podobnosti se odvíjí od počtu potvrzených atributů.",
   semanticka:
-    "Postup dle kapitoly 3.4.1. Měřením doložena přesnost 0,001 — slouží ke srovnání.",
+    "Postup dle kapitoly 3.4.1. Měřením doložena přesnost 0,001 - slouží ke srovnání.",
   lexikalni:
     "Tradiční porovnávání řetězců dle kapitoly 2.3.1. Slouží jako referenční základna.",
 };
@@ -338,7 +338,7 @@ function Posuvnik({
   return (
     <div>
       <label className="stitek-pole">
-        {popisek} —{" "}
+        {popisek} -{" "}
         <span className="font-mono text-text">{hodnota.toFixed(2)}</span>
       </label>
       <input

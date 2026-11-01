@@ -26,7 +26,7 @@ import {
 const NA_STRANKU = 25;
 
 const NAZVY_ROLI: Record<string, string> = {
-  "": "—",
+  "": "-",
   id: "ID položky",
   popis: "Popis (porovnává se)",
   jazyk: "Jazyk záznamu",
@@ -478,7 +478,7 @@ function DialogSmazani({
       <p className="text-sm text-text">Smaže se:</p>
       <ul className="text-sm text-textTlumeny list-disc pl-5 space-y-1">
         <li>
-          katalog „{stav.nazev_souboru}“ —{" "}
+          katalog „{stav.nazev_souboru}“ -{" "}
           {sklonuj(stav.pocet_polozek ?? 0, "položka", "položky", "položek")},
         </li>
         <li>
@@ -645,10 +645,10 @@ function DialogImportu({
     if (nazvy.some((n) => !n)) problemy.push("Každý sloupec musí mít název.");
     if (new Set(nazvy).size !== nazvy.length) problemy.push("Názvy sloupců se nesmí opakovat.");
     if (sRoli("popis").length === 0)
-      problemy.push("Označte alespoň jeden sloupec s popisem položky — ten se porovnává při deduplikaci.");
+      problemy.push("Označte alespoň jeden sloupec s popisem položky - ten se porovnává při deduplikaci.");
     if (maId && sRoli("id").length !== 1) problemy.push("Označte právě jeden sloupec s ID položek.");
     if (maId && navrhId && !navrhId.unikatni)
-      problemy.push(`Hodnoty ve sloupci „${sloupecId.nazev}“ nejsou jedinečné nebo některé chybí — zvolte jiný sloupec, nebo nechte ID vygenerovat.`);
+      problemy.push(`Hodnoty ve sloupci „${sloupecId.nazev}“ nejsou jedinečné nebo některé chybí - zvolte jiný sloupec, nebo nechte ID vygenerovat.`);
     if (rezim === "sloupec" && sRoli("jazyk").length !== 1)
       problemy.push("Označte právě jeden sloupec, který uvádí jazyk záznamu.");
     const bezJazyka = (navrhJazyka?.hodnoty ?? []).filter((h) => !mapaJazyku[h]);
@@ -778,8 +778,8 @@ function DialogImportu({
               {(
                 [
                   ["ne", "ne, celý katalog je v jednom jazyce"],
-                  ["sloupec", "ano — jazyk záznamu uvádí samostatný sloupec (např. LANGCODE = CS, EN)"],
-                  ["sloupce", "ano — každý jazyk má vlastní sloupec (např. POPIS_CS, POPIS_EN)"],
+                  ["sloupec", "ano - jazyk záznamu uvádí samostatný sloupec (např. LANGCODE = CS, EN)"],
+                  ["sloupce", "ano - každý jazyk má vlastní sloupec (např. POPIS_CS, POPIS_EN)"],
                 ] as [Rezim, string][]
               ).map(([hodnota, text]) => (
                 <label key={hodnota} className="flex items-start gap-1.5 cursor-pointer">
@@ -837,7 +837,7 @@ function DialogImportu({
             <div className="panel p-3 border-vystraha bg-vystrahaTlumena text-sm text-text">
               {sklonuj(nahled.radku_s_prebytkem, "řádek má", "řádky mají", "řádků má")} více
               hodnot, než je sloupců
-              v záhlaví — nejspíš obsahují oddělovač uvnitř hodnoty, například desetinnou
+              v záhlaví - nejspíš obsahují oddělovač uvnitř hodnoty, například desetinnou
               čárku v souboru odděleném čárkami. Přebývající hodnoty by se zahodily. Vraťte se
               zpět a zvolte jiný oddělovač, nebo soubor uložte znovu s hodnotami v uvozovkách.
             </div>
@@ -889,7 +889,7 @@ function DialogImportu({
                           <VolbaJazykaObsahu
                             jazyky={jazyky}
                             hodnota={s.jazyk}
-                            prazdna="—"
+                            prazdna="-"
                             naZmenu={(kod) => zmenSloupec(s.index, { jazyk: kod })}
                           />
                         </td>
@@ -1050,7 +1050,7 @@ function PanelDetailu({
                       {s.jazyk && ` (${s.jazyk})`}
                     </dt>
                     <dd className="mt-0.5 text-text break-words">
-                      {detail.data?.data[s.nazev] || "—"}
+                      {detail.data?.data[s.nazev] || "-"}
                     </dd>
                   </div>
                 ))}

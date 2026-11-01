@@ -11,25 +11,6 @@ import {
   ZahlaviObrazovky,
 } from "../komponenty";
 
-const PRIKLADY = [
-  {
-    popis: "Bearing ball 6204 2RS",
-    vysvetleni: "anglický zápis českého záznamu — mezijazyčná duplicita",
-  },
-  {
-    popis: "Ložisko kuličkové 6205 2RS",
-    vysvetleni: "jiný rozměr — nesmí být vyhodnoceno jako duplicita",
-  },
-  {
-    popis: "Vent. kul. DN50 PN16 nerez",
-    vysvetleni: "zkrácený zápis existující položky",
-  },
-  {
-    popis: "Zpětný ventil DN50 PN16",
-    vysvetleni: "jiný druh armatury téže světlosti",
-  },
-];
-
 export default function KontrolaPolozky() {
   const [popis, nastavPopis] = useState("");
   const [skupina, nastavSkupinu] = useState("");
@@ -152,25 +133,6 @@ export default function KontrolaPolozky() {
               </div>
             </div>
           </Panel>
-
-          <Panel nadpis="Vyzkoušejte" popis="Připravené případy pro ověření chování">
-            <div className="space-y-2">
-              {PRIKLADY.map((p) => (
-                <button
-                  key={p.popis}
-                  className="w-full text-left rounded-xs border border-obrys bg-plocha2 px-3 py-2 transition-colors hover:border-akcent hover:bg-akcentTlumeny group"
-                  onClick={() => nastavPopis(p.popis)}
-                >
-                  <span className="block font-mono text-[0.8125rem] text-text group-hover:text-akcent">
-                    {p.popis}
-                  </span>
-                  <span className="block text-xs text-textTlumeny mt-0.5">
-                    {p.vysvetleni}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </Panel>
         </div>
 
         <div className="space-y-4">
@@ -212,7 +174,7 @@ export default function KontrolaPolozky() {
                   <div className="min-w-0">
                     <p className="font-medium text-text">
                       {vysledek.nalezena_duplicita
-                        ? `Nalezena možná duplicita — ${duplicity.length}× v katalogu`
+                        ? `Nalezena možná duplicita - ${duplicity.length}× v katalogu`
                         : "Duplicita nebyla nalezena"}
                     </p>
                     <p className="text-sm text-textTlumeny mt-0.5">

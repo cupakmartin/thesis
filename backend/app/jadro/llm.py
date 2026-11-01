@@ -5,7 +5,7 @@ import logging
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, TypedDict
 
 from app.config import Nastaveni, aktivni_model, nastaveni
 
@@ -138,11 +138,17 @@ class OllamaPoskytovatel:
         )
 
 
+class ParametryVolani(TypedDict):
+    max_tokenu: int | None
+    stop: list[str]
+    model: str | None
+
+
 class StubPoskytovatel:
     def __init__(self, odpovedi: dict[str, str] | None = None) -> None:
         self._odpovedi = odpovedi or {}
         self.zaznamenane_vstupy: list[tuple[str, str]] = []
-        self.zaznamenane_parametry: list[dict[str, object]] = []
+        self.zaznamenane_parametry: list[ParametryVolani] = []
 
     @property
     def nazev_modelu(self) -> str:
