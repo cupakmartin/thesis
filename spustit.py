@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import io
 import os
 import sys
 import threading
@@ -62,6 +63,10 @@ def main() -> None:
     parser.add_argument("--znovu-nacitat", action="store_true",
                         help="automatické načtení změn kódu (pro vývoj)")
     argumenty = parser.parse_args()
+
+    for proud in (sys.stdout, sys.stderr):
+        if isinstance(proud, io.TextIOWrapper):
+            proud.reconfigure(encoding="utf-8", errors="replace")
 
     print("=" * 72)
     print("  MRO MASTER DATA AI")
