@@ -32,7 +32,7 @@ class Nastaveni(BaseSettings):
     model_embeddingu: str = "sentence-transformers/LaBSE"
     dimenze_vektoru: int = 768
 
-    zarizeni_embeddingu: str = "cpu"
+    zarizeni_embeddingu: str = "auto"
     velikost_davky: int = 128
 
     normalizovat_vektory: bool = True

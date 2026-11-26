@@ -11,6 +11,7 @@ from app.db import pripoj
 from app.jadro.csv_import import ChybaCsv
 from app.sluzby.import_katalogu import (
     MAX_VELIKOST_CSV,
+    POSTUP_IMPORTU,
     ChybaImportu,
     NastaveniImportu,
     SloupecKatalogu,
@@ -96,6 +97,11 @@ def importuj_katalog(pozadavek: PozadavekImportuKatalogu) -> dict[str, Any]:
         return importuj_nahled(pozadavek.token, nastaveni, kdo=pozadavek.kdo)
     except (ChybaCsv, ChybaImportu) as chyba:
         raise HTTPException(status_code=400, detail=str(chyba)) from chyba
+
+
+@router_katalog.get("/import/prubeh")
+def prubeh_importu() -> dict[str, Any]:
+    return POSTUP_IMPORTU.snimek()
 
 
 @router_katalog.post("/generovat")

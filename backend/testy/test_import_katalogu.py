@@ -256,6 +256,11 @@ class TestRozhrani:
         })
         assert odpoved.status_code == 200, odpoved.text
 
+        prubeh = klient.get("/api/katalog/import/prubeh").json()
+        assert prubeh["stav"] == "dokonceno"
+        assert prubeh["faze"] == "Zápis do databáze"
+        assert prubeh["hotovo"] == prubeh["celkem"] == 2
+
         stav = klient.get("/api/katalog").json()
         assert stav["existuje"] is True and stav["pocet_polozek"] == 2
         polozky = klient.get("/api/polozky").json()["polozky"]

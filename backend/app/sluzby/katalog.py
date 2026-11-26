@@ -14,10 +14,16 @@ from app.config import Nastaveni, nastaveni
 from app.db import pripoj
 from app.jadro.duplicity import ZaznamPolozky
 from app.jadro.embeddingy import SpravceEmbeddingu, spravce_embeddingu
-from app.jadro.index_faiss import VektorovyIndex
+from app.jadro.index_faiss import VektorovyIndex, otisk_vektoru
 from app.jadro.normalizace import normalizuj_pro_embedding
+from app.jadro.postup import BEZ_SLEDOVANI, SledovaniPostupu
 
 logger = logging.getLogger(__name__)
+
+FAZE_VEKTORY = "vektory"
+FAZE_INDEX = "index"
+PREDPONA_SOUBORU_INDEXU = "index_hnsw_"
+MIN_POLOZEK_PRO_ULOZENI_INDEXU = 20_000
 
 @dataclass
 class FiltrKatalogu:
@@ -220,7 +226,28 @@ class SluzbaKatalogu:
             for r in radky
         ]
 
-    def zajisti_index(self) -> tuple[np.ndarray, VektorovyIndex]:
+    def _texty_pro_embedding(self) -> list[str]:
+        return [normalizuj_pro_embedding(z.text_pro_porovnani()) for z in self._zaznamy]
+
+    def _cesta_indexu(self, otisk: str) -> Path:
+        return self._nastaveni.adresar_cache / f"{PREDPONA_SOUBORU_INDEXU}{otisk}.faiss"
+
+    def odhad_prace(self) -> tuple[int, int, bool]:
+        with self._zamek:
+            self._zajisti_zaznamy()
+            if self._index is not None and self._vektory is not None:
+                return len(self._zaznamy), 0, False
+            chybejici = self._spravce.pocet_chybejicich(self._texty_pro_embedding())
+            ulozeny = (
+                chybejici == 0
+                and len(self._zaznamy) >= MIN_POLOZEK_PRO_ULOZENI_INDEXU
+                and any(self._nastaveni.adresar_cache.glob(f"{PREDPONA_SOUBORU_INDEXU}*.faiss"))
+            )
+            return len(self._zaznamy), chybejici, not ulozeny
+
+    def zajisti_index(
+        self, postup: SledovaniPostupu = BEZ_SLEDOVANI
+    ) -> tuple[np.ndarray, VektorovyIndex]:
         with self._zamek:
             if self._index is not None and self._vektory is not None:
                 return self._vektory, self._index
@@ -231,17 +258,34 @@ class SluzbaKatalogu:
                     "Katalog je prázdný. Načtěte nejprve data pomocí importu."
                 )
 
-            texty = [
-                normalizuj_pro_embedding(z.text_pro_porovnani()) for z in self._zaznamy
-            ]
-            self._vektory = self._spravce.zakoduj(texty)
+            texty = self._texty_pro_embedding()
+            if self._spravce.pocet_chybejicich(texty):
+                postup.faze(FAZE_VEKTORY)
+            vektory = self._spravce.zakoduj(
+                texty, postup=lambda hotovo, celkem: postup.posun(hotovo, celkem)
+            )
             self._spravce.uloz_cache()
 
-            self._index = VektorovyIndex(
-                dimenze=self._vektory.shape[1], konfigurace=self._nastaveni
-            )
-            self._index.postav(self._vektory)
+            index = VektorovyIndex(dimenze=vektory.shape[1], konfigurace=self._nastaveni)
+            ukladat = len(vektory) >= MIN_POLOZEK_PRO_ULOZENI_INDEXU
+            cesta = self._cesta_indexu(otisk_vektoru(vektory, self._nastaveni)) if ukladat else None
+            if cesta is None or not index.nacti(cesta) or index.velikost != len(vektory):
+                postup.faze(FAZE_INDEX, len(vektory))
+                index.postav(vektory, postup=lambda hotovo, celkem: postup.posun(hotovo, celkem))
+                if cesta is not None:
+                    self._uloz_index(index, cesta)
+
+            self._vektory, self._index = vektory, index
             return self._vektory, self._index
+
+    def _uloz_index(self, index: VektorovyIndex, cesta: Path) -> None:
+        try:
+            for stary in cesta.parent.glob(f"{PREDPONA_SOUBORU_INDEXU}*.faiss"):
+                if stary != cesta:
+                    stary.unlink(missing_ok=True)
+            index.uloz(cesta)
+        except OSError as chyba:
+            logger.warning("Index se nepodařilo uložit (%s).", chyba)
 
     def invaliduj_index(self) -> None:
         with self._zamek:

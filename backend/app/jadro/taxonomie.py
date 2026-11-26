@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import logging
 import re
 from dataclasses import dataclass
@@ -75,17 +76,27 @@ class Zarazeni:
         return TRIDY_PODLE_KODU.get(self.kod)
 
 
+@functools.cache
+def _klicova_slova_podle_delky() -> tuple[tuple[str, str, re.Pattern[str]], ...]:
+    poradi = [
+        (len(slovo), pozice, kod, slovo)
+        for pozice, (kod, slovo) in enumerate(
+            (kod, slovo) for kod, slova in KLICOVA_SLOVA.items() for slovo in slova
+        )
+    ]
+    poradi.sort(key=lambda p: (-p[0], p[1]))
+    return tuple((kod, slovo, re.compile(r"\b" + re.escape(slovo))) for _, _, kod, slovo in poradi)
+
+
 def zarad_pravidlove(popis: str, komoditni_skupina: str = "") -> Zarazeni | None:
     normalizovany = odstran_diakritiku(popis or "").lower()
 
     nejlepsi_kod: str | None = None
     nejlepsi_slovo = ""
-    for kod, slova in KLICOVA_SLOVA.items():
-        for slovo in slova:
-            if len(slovo) <= len(nejlepsi_slovo):
-                continue
-            if re.search(r"\b" + re.escape(slovo), normalizovany):
-                nejlepsi_kod, nejlepsi_slovo = kod, slovo
+    for kod, slovo, vzor in _klicova_slova_podle_delky():
+        if slovo in normalizovany and vzor.search(normalizovany):
+            nejlepsi_kod, nejlepsi_slovo = kod, slovo
+            break
 
     if nejlepsi_kod:
         trida = TRIDY_PODLE_KODU[nejlepsi_kod]

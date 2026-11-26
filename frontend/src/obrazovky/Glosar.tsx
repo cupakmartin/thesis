@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type Jazyk, type TerminGlosare } from "../api";
-import { useJazyky, useNacti, useOdlozeno } from "../hooky";
+import { useJazyky, useNacti, useOdhadZbyvajiciDoby, useOdlozeno } from "../hooky";
 import {
   ChybovyStav,
   Ikona,
   Nacitani,
   Panel,
   PrazdnyStav,
+  RadekDoby,
   Strankovac,
   ZahlaviObrazovky,
   formatujCislo,
@@ -61,6 +62,11 @@ export default function Glosar() {
   const [uklada, nastavUklada] = useState(false);
   const [doplnovani, nastavDoplnovani] = useState<Doplnovani | null>(null);
   const ovladac = useRef<AbortController | null>(null);
+  const odhadDoplneni = useOdhadZbyvajiciDoby(
+    doplnovani?.hotovo ?? 0,
+    doplnovani?.celkem ?? 0,
+    doplnovani !== null,
+  );
 
   const hledaniOdlozene = useOdlozeno(hledani, 300);
   useEffect(() => nastavOdsazeni(0), [hledaniOdlozene, kategorie, jenNeoverene]);
@@ -210,6 +216,9 @@ export default function Glosar() {
                       width: `${doplnovani.celkem ? (doplnovani.hotovo / doplnovani.celkem) * 100 : 2}%`,
                     }}
                   />
+                </div>
+                <div className="mt-1.5">
+                  <RadekDoby {...odhadDoplneni} />
                 </div>
               </>
             ) : (

@@ -9,15 +9,30 @@ from typing import Any
 from app.config import nastaveni
 from app.db import nyni, pripoj
 from app.jadro.duplicity import (
+    FAZE_DVOJICE,
+    FAZE_HLEDANI,
+    FAZE_PRIPRAVA,
+    FAZE_SHLUKOVANI,
+    KROK_HLASENI,
     METODA_HYBRIDNI,
     NastaveniDeduplikace,
     VysledekDeduplikace,
     ZaznamPolozky,
     najdi_duplicity,
 )
-from app.sluzby.katalog import SluzbaKatalogu, sluzba_katalogu
+from app.jadro.postup import SledovaniPostupu
+from app.sluzby.katalog import FAZE_INDEX, FAZE_VEKTORY, SluzbaKatalogu, sluzba_katalogu
 
 logger = logging.getLogger(__name__)
+
+FAZE_ULOZENI = "ulozeni"
+SEKUND_NA_VEKTOR = 0.016
+SEKUND_NA_STAVBU_INDEXU = 0.00015
+SEKUND_NA_PRIPRAVU = 0.00006
+SEKUND_NA_HLEDANI = 0.00014
+SEKUND_NA_DVOJICE = 0.0001
+SEKUND_NA_SHLUKOVANI = 0.00002
+SEKUND_NA_ULOZENI = 0.00005
 
 
 def vychozi_nastaveni() -> NastaveniDeduplikace:
@@ -57,6 +72,7 @@ def navrhni_zastupce(polozky: list[dict[str, Any]]) -> str:
 class SluzbaDeduplikace:
     def __init__(self, katalog: SluzbaKatalogu | None = None) -> None:
         self._katalog = katalog or sluzba_katalogu()
+        self.postup = SledovaniPostupu()
 
     def smaz_vsechny_behy(self) -> int:
         with pripoj() as spojeni:
@@ -75,13 +91,44 @@ class SluzbaDeduplikace:
         nahradit: bool = True,
     ) -> int:
         konfigurace = konfigurace or vychozi_nastaveni()
-        if nahradit:
-            self.smaz_vsechny_behy()
         zaznamy = self._katalog.zaznamy()
         if not zaznamy:
             raise RuntimeError("Katalog je prázdný, deduplikaci nelze spustit.")
 
-        vektory, _ = self._katalog.zajisti_index()
+        pocet, chybejici, stavet_index = self._katalog.odhad_prace()
+        faze: list[tuple[str, str, float]] = []
+        if chybejici:
+            faze.append((FAZE_VEKTORY, "Výpočet vektorových reprezentací",
+                         chybejici * SEKUND_NA_VEKTOR))
+        if stavet_index:
+            faze.append((FAZE_INDEX, "Stavba indexu HNSW", pocet * SEKUND_NA_STAVBU_INDEXU))
+        faze += [
+            (FAZE_PRIPRAVA, "Příprava popisů a atributů", pocet * SEKUND_NA_PRIPRAVU),
+            (FAZE_HLEDANI, "Hledání kandidátů v indexu", pocet * SEKUND_NA_HLEDANI),
+            (FAZE_DVOJICE, "Posouzení kandidátních dvojic", pocet * SEKUND_NA_DVOJICE),
+            (FAZE_SHLUKOVANI, "Sestavení skupin", pocet * SEKUND_NA_SHLUKOVANI),
+            (FAZE_ULOZENI, "Uložení skupin", pocet * SEKUND_NA_ULOZENI),
+        ]
+        self.postup.zacni("deduplikace", faze)
+
+        try:
+            beh_id = self._spust_se_sledovanim(konfigurace, zaznamy, kdo, nahradit)
+        except Exception as chyba:
+            self.postup.selhej(str(chyba))
+            raise
+        self.postup.dokonci()
+        return beh_id
+
+    def _spust_se_sledovanim(
+        self,
+        konfigurace: NastaveniDeduplikace,
+        zaznamy: list[ZaznamPolozky],
+        kdo: str,
+        nahradit: bool,
+    ) -> int:
+        vektory, index = self._katalog.zajisti_index(self.postup)
+        if nahradit:
+            self.smaz_vsechny_behy()
 
         with pripoj() as spojeni:
             kurzor = spojeni.execute(
@@ -94,7 +141,9 @@ class SluzbaDeduplikace:
             beh_id = int(kurzor.lastrowid or 0)
 
         try:
-            vysledek = najdi_duplicity(zaznamy, konfigurace, vektory=vektory)
+            vysledek = najdi_duplicity(
+                zaznamy, konfigurace, vektory=vektory, index=index, postup=self.postup
+            )
         except Exception as chyba:
             with pripoj() as spojeni:
                 spojeni.execute(
@@ -119,8 +168,11 @@ class SluzbaDeduplikace:
                 for r in spojeni.execute("SELECT * FROM polozky").fetchall()
             }
 
+        self.postup.faze(FAZE_ULOZENI, len(vysledek.klastry))
         with pripoj() as spojeni:
-            for klastr in vysledek.klastry:
+            for poradi, klastr in enumerate(vysledek.klastry):
+                if poradi % KROK_HLASENI == 0:
+                    self.postup.posun(poradi)
                 cisla_polozek = [zaznamy[i].itemnum for i in klastr.indexy]
                 zastupce = navrhni_zastupce(
                     [podrobnosti[c] for c in cisla_polozek if c in podrobnosti]

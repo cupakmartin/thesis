@@ -272,6 +272,20 @@ export interface Klastr {
   rozhodnuti: Rozhodnuti[];
 }
 
+export interface Postup {
+  uloha: string;
+  stav: "necinny" | "bezi" | "dokonceno" | "chyba";
+  faze: string;
+  faze_poradi: number;
+  pocet_fazi: number;
+  hotovo: number;
+  celkem: number;
+  uplynulo_s: number;
+  zbyva_s: number | null;
+  odhad_z_mereni: boolean;
+  chyba: string;
+}
+
 export interface Beh {
   id: number;
   zalozeno: string;
@@ -594,6 +608,7 @@ export const api = {
       );
       return (await odpoved.json()) as NahledCsv;
     },
+    prubehImportu: () => ziskej<Postup>("/katalog/import/prubeh"),
     importovat: (telo: ImportKatalogu) =>
       posli<VysledekImportu>("/katalog/import", telo),
     generovat: (pocet: number) =>
@@ -605,6 +620,7 @@ export const api = {
   deduplikace: {
     spustit: (n: NastaveniDeduplikace) =>
       posli<Potvrzeni>("/deduplikace/spustit", n),
+    prubeh: () => ziskej<Postup>("/deduplikace/prubeh"),
     behy: () => ziskej<Beh[]>("/deduplikace/behy"),
     smazatBehy: () => smaz<Potvrzeni>("/deduplikace/behy"),
     klastry: (behId: number, f: Record<string, unknown>) =>

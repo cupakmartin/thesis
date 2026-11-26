@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, type Klastr, type NastaveniDeduplikace } from "../api";
-import {useNacti} from "../hooky";
+import { useNacti, useSledovaniPostupu } from "../hooky";
 import {
   ChybovyStav,
   Ikona,
@@ -12,6 +12,7 @@ import {
   PrazdnyStav,
   Skore,
   Strankovac,
+  UkazatelPostupu,
   ZahlaviObrazovky,
   formatujCas,
   formatujCislo,
@@ -38,7 +39,27 @@ export default function Deduplikace() {
   const [potvrzeni, nastavPotvrzeni] = useState(false);
   const [rozbaleny, nastavRozbaleny] = useState<number | null>(null);
 
+  const [sledovat, nastavSledovat] = useState(false);
+  const postup = useSledovaniPostupu(api.deduplikace.prubeh, pracuje || sledovat);
+
   const behy = useNacti(() => api.deduplikace.behy(), []);
+
+  useEffect(() => {
+    api.deduplikace
+      .prubeh()
+      .then((snimek) => {
+        if (snimek.stav === "bezi") nastavSledovat(true);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const obnovBehy = behy.obnov;
+  useEffect(() => {
+    if (sledovat && !pracuje && postup && postup.stav !== "bezi") {
+      nastavSledovat(false);
+      obnovBehy();
+    }
+  }, [sledovat, pracuje, postup, obnovBehy]);
   const aktualniBeh = behy.data?.find((b) => b.stav === "dokonceno") ?? null;
 
   const klastry = useNacti(
@@ -208,9 +229,9 @@ export default function Deduplikace() {
               <button
                 className="tlacitko-hlavni w-full"
                 onClick={() => void spust()}
-                disabled={pracuje}
+                disabled={pracuje || sledovat}
               >
-                {pracuje ? (
+                {pracuje || sledovat ? (
                   "Zpracovávám…"
                 ) : (
                   <>
@@ -218,11 +239,14 @@ export default function Deduplikace() {
                   </>
                 )}
               </button>
-              {pracuje && (
-                <div className="ukazatel h-1.5">
-                  <div className="ukazatel-vypln prubeh-neurcity w-full" />
-                </div>
-              )}
+              {(pracuje || sledovat) &&
+                (postup?.stav === "bezi" ? (
+                  <UkazatelPostupu postup={postup} />
+                ) : (
+                  <div className="ukazatel h-1.5">
+                    <div className="ukazatel-vypln prubeh-neurcity w-full" />
+                  </div>
+                ))}
             </div>
           </Panel>
 

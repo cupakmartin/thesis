@@ -7,7 +7,7 @@ import threading
 from dataclasses import dataclass
 
 from app.jadro.normalizace import odstran_diakritiku
-from app.jadro.validace import _kmen, _kmeny_odpovidaji, _slova
+from app.jadro.validace import MAXIMALNI_ROZDIL_KMENU, _kmen, _slova
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +25,9 @@ FUNKCNI_VARIANTY: dict[str, str] = {
 }
 
 
+VELIKOST_MEZIPAMETI = 250_000
+
+
 @dataclass(frozen=True)
 class UrcenyTyp:
     identifikator: str
@@ -38,6 +41,10 @@ class UrcenyTyp:
 class SlovnikTypu:
     def __init__(self) -> None:
         self._podle_tvaru: dict[str, tuple[str, str]] = {}
+        self._tvary: list[tuple[int, frozenset[str], str, str, str]] = []
+        self._tvary_podle_kmene: dict[str, list[int]] = {}
+        self._prodlouzeni: dict[str, set[str]] = {}
+        self._mezipamet: dict[str, UrcenyTyp | None] = {}
         self._pripraven = False
         self._zamek = threading.Lock()
 
@@ -66,39 +73,78 @@ class SlovnikTypu:
             for tvar, identifikator in FUNKCNI_VARIANTY.items():
                 self._podle_tvaru.setdefault(tvar, (identifikator, tvar))
 
+            self._sestav_rejstrik()
             self._pripraven = True
             logger.info("Slovník druhů komponent obsahuje %d tvarů.",
                         len(self._podle_tvaru))
+
+    def _sestav_rejstrik(self) -> None:
+        self._tvary = []
+        self._tvary_podle_kmene = {}
+        self._prodlouzeni = {}
+        self._mezipamet = {}
+
+        for tvar, (identifikator, nazev) in self._podle_tvaru.items():
+            slova = _slova(tvar)
+            if not slova:
+                continue
+            kmeny = frozenset(_kmen(s) for s in slova)
+            poradi = len(self._tvary)
+            self._tvary.append((len(slova), kmeny, identifikator, nazev, tvar))
+            for kmen in kmeny:
+                self._tvary_podle_kmene.setdefault(kmen, []).append(poradi)
+                for rozdil in range(1, MAXIMALNI_ROZDIL_KMENU + 1):
+                    if len(kmen) - rozdil >= 1:
+                        self._prodlouzeni.setdefault(kmen[:-rozdil], set()).add(kmen)
+
+    def _odpovidajici_kmeny(self, kmen_popisu: str) -> set[str]:
+        shody = set(self._prodlouzeni.get(kmen_popisu, ()))
+        for delka in range(max(1, len(kmen_popisu) - MAXIMALNI_ROZDIL_KMENU),
+                           len(kmen_popisu) + 1):
+            predpona = kmen_popisu[:delka]
+            if predpona in self._tvary_podle_kmene:
+                shody.add(predpona)
+        return shody
 
     def urci(self, popis: str) -> UrcenyTyp | None:
         if not self._pripraven:
             self.priprav()
         if not popis:
             return None
+        if popis in self._mezipamet:
+            return self._mezipamet[popis]
 
+        vysledek = self._urci_bez_mezipameti(popis)
+        if len(self._mezipamet) >= VELIKOST_MEZIPAMETI:
+            self._mezipamet.clear()
+        self._mezipamet[popis] = vysledek
+        return vysledek
+
+    def _urci_bez_mezipameti(self, popis: str) -> UrcenyTyp | None:
         kmeny_popisu = {_kmen(s) for s in _slova(popis)}
         if not kmeny_popisu:
             return None
 
-        nejlepsi: tuple[str, str, str] | None = None
-        nejlepsi_pocet_slov = 0
+        nalezene: set[str] = set()
+        for kmen_popisu in kmeny_popisu:
+            nalezene |= self._odpovidajici_kmeny(kmen_popisu)
 
-        for tvar, (identifikator, nazev) in self._podle_tvaru.items():
-            slova_tvaru = _slova(tvar)
-            if not slova_tvaru or len(slova_tvaru) <= nejlepsi_pocet_slov:
+        kandidati = {
+            poradi for kmen in nalezene for poradi in self._tvary_podle_kmene.get(kmen, ())
+        }
+        nejlepsi: tuple[int, frozenset[str], str, str, str] | None = None
+        nejlepsi_poradi = -1
+        for poradi in sorted(kandidati):
+            tvar = self._tvary[poradi]
+            if nejlepsi is not None and tvar[0] <= nejlepsi[0]:
                 continue
-            if all(
-                any(_kmeny_odpovidaji(kmen_popisu, _kmen(slovo))
-                    for kmen_popisu in kmeny_popisu)
-                for slovo in slova_tvaru
-            ):
-                nejlepsi = (identifikator, nazev, tvar)
-                nejlepsi_pocet_slov = len(slova_tvaru)
+            if tvar[1] <= nalezene:
+                nejlepsi, nejlepsi_poradi = tvar, poradi
 
-        if nejlepsi is None:
+        if nejlepsi is None or nejlepsi_poradi < 0:
             return None
-        return UrcenyTyp(identifikator=nejlepsi[0], nazev=nejlepsi[1],
-                         zdroj_terminu=nejlepsi[2])
+        return UrcenyTyp(identifikator=nejlepsi[2], nazev=nejlepsi[3],
+                         zdroj_terminu=nejlepsi[4])
 
     @property
     def velikost(self) -> int:

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import type { Postup } from "./api";
 
 type VlastnostiIkony = { velikost?: number; trida?: string };
 
@@ -352,6 +353,66 @@ export function useOznameni() {
   );
 
   return { pridej, vykresli };
+}
+
+export function formatujDobu(sekundy: number): string {
+  const s = Math.max(0, Math.round(sekundy));
+  if (s < 60) return `${s} s`;
+  const minuty = Math.floor(s / 60);
+  if (minuty < 60) return s % 60 && minuty < 10 ? `${minuty} min ${s % 60} s` : `${minuty} min`;
+  const hodiny = Math.floor(minuty / 60);
+  return minuty % 60 ? `${hodiny} h ${minuty % 60} min` : `${hodiny} h`;
+}
+
+export function textZbyvajiciDoby(zbyva_s: number | null): string {
+  if (zbyva_s === null) return "odhaduji zbývající čas…";
+  if (zbyva_s < 5) return "téměř hotovo";
+  return `zbývá přibližně ${formatujDobu(zbyva_s)}`;
+}
+
+export function RadekDoby({
+  uplynulo_s,
+  zbyva_s,
+}: {
+  uplynulo_s: number;
+  zbyva_s: number | null;
+}) {
+  return (
+    <p className="text-2xs text-textTlumeny tabular-nums">
+      {textZbyvajiciDoby(zbyva_s)} · uplynulo {formatujDobu(uplynulo_s)}
+    </p>
+  );
+}
+
+export function UkazatelPostupu({ postup }: { postup: Postup }) {
+  const podil = postup.celkem ? Math.min(1, postup.hotovo / postup.celkem) : 0;
+  return (
+    <div className="space-y-1.5" aria-live="polite">
+      <div className="flex items-baseline justify-between gap-2 text-xs">
+        <span className="text-text">
+          {postup.pocet_fazi > 1 && postup.faze_poradi > 0 && (
+            <span className="text-textSlaby">
+              Krok {postup.faze_poradi} z {postup.pocet_fazi}:{" "}
+            </span>
+          )}
+          {postup.faze || "Připravuji…"}
+        </span>
+        {postup.celkem > 0 && (
+          <span className="font-mono text-2xs tabular-nums text-textTlumeny whitespace-nowrap">
+            {formatujCislo(postup.hotovo)} / {formatujCislo(postup.celkem)}
+          </span>
+        )}
+      </div>
+      <div className="ukazatel h-1.5">
+        {postup.celkem > 0 ? (
+          <div className="ukazatel-vypln" style={{ width: `${Math.max(podil * 100, 1)}%` }} />
+        ) : (
+          <div className="ukazatel-vypln prubeh-neurcity w-full" />
+        )}
+      </div>
+      <RadekDoby uplynulo_s={postup.uplynulo_s} zbyva_s={postup.zbyva_s} />
+    </div>
+  );
 }
 
 export function formatujCas(iso: string | null): string {

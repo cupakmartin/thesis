@@ -6,7 +6,7 @@ import {
   type SloupecKatalogu,
   type StavKatalogu,
 } from "../api";
-import { useJazyky, useNacti, useOdlozeno } from "../hooky";
+import { useJazyky, useNacti, useOdlozeno, useSledovaniPostupu } from "../hooky";
 import {
   ChybovyStav,
   Ikona,
@@ -16,6 +16,7 @@ import {
   Panel,
   PrazdnyStav,
   Strankovac,
+  UkazatelPostupu,
   ZahlaviObrazovky,
   formatujCas,
   formatujCislo,
@@ -596,6 +597,7 @@ function DialogImportu({
   const [jazykKatalogu, nastavJazykKatalogu] = useState("");
   const [pracuje, nastavPracuje] = useState(false);
   const [chyba, nastavChybu] = useState<string | null>(null);
+  const postupImportu = useSledovaniPostupu(api.katalog.prubehImportu, pracuje && nahled !== null);
 
   const povoleneRole = Object.keys(NAZVY_ROLI).filter(
     (r) => (r !== "id" || maId) && (r !== "jazyk" || rezim === "sloupec"),
@@ -731,6 +733,11 @@ function DialogImportu({
         )
       }
     >
+      {pracuje && nahled && postupImportu?.stav === "bezi" && (
+        <div className="panel p-3 mb-3">
+          <UkazatelPostupu postup={postupImportu} />
+        </div>
+      )}
       {!nahled ? (
         <>
           <div>

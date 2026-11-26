@@ -27,9 +27,20 @@ from app.jadro.csv_import import (
     rozpoznej_jazyk,
 )
 from app.jadro.jazyky import je_podporovany
+from app.jadro.postup import BEZ_SLEDOVANI, SledovaniPostupu
 from app.jadro.taxonomie import zarad_pravidlove
 
 logger = logging.getLogger(__name__)
+
+POSTUP_IMPORTU = SledovaniPostupu()
+FAZE_CTENI = "cteni"
+FAZE_ZPRACOVANI = "zpracovani"
+FAZE_ZAPIS = "zapis"
+KROK_HLASENI_IMPORTU = 2000
+VELIKOST_DAVKY_ZAPISU = 5000
+SEKUND_NA_BAJT_CTENI = 0.00000008
+SEKUND_NA_BAJT_ZPRACOVANI = 0.0000004
+SEKUND_NA_BAJT_ZAPISU = 0.0000003
 
 KLIC_SMAZANO = "katalog_smazan"
 MAX_VELIKOST_CSV = 50 * 1024 * 1024
@@ -214,7 +225,7 @@ def _nazev_generovaneho_id(nazvy: list[str]) -> str:
 
 
 def _sestav(
-    obsah: ObsahCsv, nast: NastaveniImportu
+    obsah: ObsahCsv, nast: NastaveniImportu, postup: SledovaniPostupu = BEZ_SLEDOVANI
 ) -> tuple[list[dict[str, Any]], list[SloupecKatalogu], int]:
     sloupce = sorted(nast.sloupce, key=lambda s: s.index)
     for s in sloupce:
@@ -238,7 +249,11 @@ def _sestav(
 
     polozky: list[dict[str, Any]] = []
     preskoceno = 0
+    postup.faze(FAZE_ZPRACOVANI, len(obsah.radky))
     for poradi, radek in enumerate(obsah.radky):
+        if poradi % KROK_HLASENI_IMPORTU == 0:
+            postup.posun(poradi)
+
         def hodnota(s: SloupecKatalogu | None) -> str:
             return radek[s.index] if s is not None and s.index >= 0 else ""
 
@@ -315,9 +330,10 @@ def importuj_obsah(
     nazev_souboru: str,
     zdroj: str = ZDROJ_IMPORT,
     kdo: str = "neznámý",
+    postup: SledovaniPostupu = BEZ_SLEDOVANI,
 ) -> dict[str, Any]:
     over_nastaveni(obsah, nast)
-    polozky, sloupce, preskoceno = _sestav(obsah, nast)
+    polozky, sloupce, preskoceno = _sestav(obsah, nast, postup)
     if not polozky:
         raise ChybaImportu("Žádný řádek nemá vyplněný popis, katalog by byl prázdný.")
 
@@ -332,12 +348,16 @@ def importuj_obsah(
         "oddelovac": obsah.oddelovac,
     }, ensure_ascii=False)
 
+    postup.faze(FAZE_ZAPIS, len(polozky))
     with pripoj() as spojeni:
         smazano = _smaz_v_transakci(spojeni)
-        spojeni.executemany(
-            f"INSERT INTO polozky ({', '.join(pole)}) VALUES ({', '.join('?' * len(pole))})",
-            [tuple(p.get(k, "") for k in pole) for p in polozky],
-        )
+        prikaz = f"INSERT INTO polozky ({', '.join(pole)}) VALUES ({', '.join('?' * len(pole))})"
+        for zacatek in range(0, len(polozky), VELIKOST_DAVKY_ZAPISU):
+            spojeni.executemany(prikaz, [
+                tuple(p.get(k, "") for k in pole)
+                for p in polozky[zacatek:zacatek + VELIKOST_DAVKY_ZAPISU]
+            ])
+            postup.posun(min(zacatek + VELIKOST_DAVKY_ZAPISU, len(polozky)))
         spojeni.execute(
             "INSERT INTO katalog (id, nazev_souboru, zdroj, importovano, kdo, "
             "sloupce_json, nastaveni_json, pocet_polozek, preskoceno) "
@@ -421,8 +441,24 @@ def importuj_nahled(token: str, nast: NastaveniImportu, kdo: str = "neznámý") 
     if not soubor.exists() or not popis.exists():
         raise ChybaImportu("Nahraný soubor už není k dispozici, nahrajte jej prosím znovu.")
     udaje = json.loads(popis.read_text(encoding="utf-8"))
-    obsah = nacti_csv(soubor.read_bytes(), kodovani=udaje["kodovani"], oddelovac=udaje["oddelovac"])
-    vysledek = importuj_obsah(obsah, nast, udaje["nazev_souboru"], ZDROJ_IMPORT, kdo)
+    velikost = soubor.stat().st_size
+    POSTUP_IMPORTU.zacni("import", [
+        (FAZE_CTENI, "Čtení souboru", velikost * SEKUND_NA_BAJT_CTENI),
+        (FAZE_ZPRACOVANI, "Zpracování řádků", velikost * SEKUND_NA_BAJT_ZPRACOVANI),
+        (FAZE_ZAPIS, "Zápis do databáze", velikost * SEKUND_NA_BAJT_ZAPISU),
+    ])
+    try:
+        POSTUP_IMPORTU.faze(FAZE_CTENI)
+        obsah = nacti_csv(
+            soubor.read_bytes(), kodovani=udaje["kodovani"], oddelovac=udaje["oddelovac"]
+        )
+        vysledek = importuj_obsah(
+            obsah, nast, udaje["nazev_souboru"], ZDROJ_IMPORT, kdo, POSTUP_IMPORTU
+        )
+    except Exception as chyba:
+        POSTUP_IMPORTU.selhej(str(chyba))
+        raise
+    POSTUP_IMPORTU.dokonci()
     soubor.unlink(missing_ok=True)
     popis.unlink(missing_ok=True)
     return vysledek

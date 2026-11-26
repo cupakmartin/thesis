@@ -5,14 +5,28 @@ import hashlib
 import logging
 import os
 import threading
+import time
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Callable, Iterable, Sequence
 
 import numpy as np
 
 from app.config import Nastaveni, nastaveni
 
 logger = logging.getLogger(__name__)
+
+INTERVAL_PRUBEZNEHO_ULOZENI_S = 120.0
+
+
+def _zvol_zarizeni(pozadovane: str) -> str:
+    if pozadovane != "auto":
+        return pozadovane
+    try:
+        import torch
+
+        return "cuda" if torch.cuda.is_available() else "cpu"
+    except ImportError:
+        return "cpu"
 
 
 def _otisk_textu(text: str) -> str:
@@ -50,10 +64,12 @@ class SpravceEmbeddingu:
             try:
                 from sentence_transformers import SentenceTransformer
 
-                logger.info("Načítám embedding model %s", self._nastaveni.model_embeddingu)
+                zarizeni = _zvol_zarizeni(self._nastaveni.zarizeni_embeddingu)
+                logger.info("Načítám embedding model %s (zařízení %s)",
+                            self._nastaveni.model_embeddingu, zarizeni)
                 self._model = SentenceTransformer(
                     self._nastaveni.model_embeddingu,
-                    device=self._nastaveni.zarizeni_embeddingu,
+                    device=zarizeni,
                 )
             finally:
                 self._nacita = False
@@ -110,11 +126,16 @@ class SpravceEmbeddingu:
         if self.cesta_cache.exists():
             self.cesta_cache.unlink()
 
+    def pocet_chybejicich(self, texty: Sequence[str]) -> int:
+        self._zajisti_cache()
+        return len({o for o in map(_otisk_textu, texty) if o not in self._cache})
+
     def zakoduj(
         self,
         texty: Sequence[str],
         pouzit_cache: bool = True,
         zobrazit_prubeh: bool = False,
+        postup: Callable[[int, int], None] | None = None,
     ) -> np.ndarray:
 
         if len(texty) == 0:
@@ -126,16 +147,39 @@ class SpravceEmbeddingu:
         self._zajisti_cache()
 
         otisky = [_otisk_textu(t) for t in texty]
-        chybejici_indexy = [i for i, o in enumerate(otisky) if o not in self._cache]
+        chybejici: dict[str, str] = {}
+        for otisk, text in zip(otisky, texty):
+            if otisk not in self._cache and otisk not in chybejici:
+                chybejici[otisk] = text
 
-        if chybejici_indexy:
-            nove_texty = [texty[i] for i in chybejici_indexy]
-            nove_vektory = self._spocti(nove_texty, zobrazit_prubeh)
-            for poradi, index in enumerate(chybejici_indexy):
-                self._cache[otisky[index]] = nove_vektory[poradi]
-            self._cache_zmenena = True
+        if chybejici:
+            self._spocti_po_castech(chybejici, zobrazit_prubeh, postup)
 
         return np.vstack([self._cache[o] for o in otisky]).astype(np.float32)
+
+    def _spocti_po_castech(
+        self,
+        chybejici: dict[str, str],
+        zobrazit_prubeh: bool,
+        postup: Callable[[int, int], None] | None,
+    ) -> None:
+        polozky = list(chybejici.items())
+        celkem = len(polozky)
+        velikost_casti = max(self._nastaveni.velikost_davky * 8, 256)
+        posledni_ulozeni = time.monotonic()
+        if postup:
+            postup(0, celkem)
+        for zacatek in range(0, celkem, velikost_casti):
+            cast = polozky[zacatek:zacatek + velikost_casti]
+            vektory = self._spocti([text for _, text in cast], zobrazit_prubeh)
+            for (otisk, _), vektor in zip(cast, vektory):
+                self._cache[otisk] = vektor
+            self._cache_zmenena = True
+            if postup:
+                postup(min(zacatek + velikost_casti, celkem), celkem)
+            if time.monotonic() - posledni_ulozeni >= INTERVAL_PRUBEZNEHO_ULOZENI_S:
+                self.uloz_cache()
+                posledni_ulozeni = time.monotonic()
 
     def _spocti(self, texty: list[str], zobrazit_prubeh: bool) -> np.ndarray:
         neprazdne_indexy = [i for i, t in enumerate(texty) if t and t.strip()]

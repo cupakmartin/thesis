@@ -144,6 +144,14 @@ class TestDeduplikace:
             cisla = {c["itemnum"] for c in klastr["cleny"]}
             assert not ({"10001", "10003"} <= cisla)
 
+    def test_prubeh_dokonceneho_behu(self, klient):
+        prubeh = klient.get("/api/deduplikace/prubeh").json()
+        assert prubeh["stav"] == "dokonceno"
+        assert prubeh["uloha"] == "deduplikace"
+        assert prubeh["zbyva_s"] == 0.0
+        assert prubeh["pocet_fazi"] >= 4
+        assert prubeh["faze"] == "Uložení skupin"
+
     def test_historie_behu(self, klient):
         odpoved = klient.get("/api/deduplikace/behy")
         assert odpoved.status_code == 200

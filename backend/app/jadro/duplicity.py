@@ -14,9 +14,16 @@ from app.jadro.embeddingy import SpravceEmbeddingu, spravce_embeddingu
 from app.jadro.index_faiss import VektorovyIndex
 from app.jadro.lexikalni import podobnost_kombinovana
 from app.jadro.normalizace import normalizuj_pro_embedding, normalizuj_pro_lexikalni
+from app.jadro.postup import BEZ_SLEDOVANI, SledovaniPostupu
 from app.jadro.typy import urci_typ
 
 logger = logging.getLogger(__name__)
+
+FAZE_PRIPRAVA = "priprava"
+FAZE_HLEDANI = "hledani"
+FAZE_DVOJICE = "dvojice"
+FAZE_SHLUKOVANI = "shlukovani"
+KROK_HLASENI = 2000
 
 METODA_SEMANTICKA = "semanticka"
 METODA_LEXIKALNI = "lexikalni"
@@ -254,6 +261,8 @@ def najdi_duplicity(
     spravce: SpravceEmbeddingu | None = None,
     globalni_nastaveni: Nastaveni | None = None,
     vektory: np.ndarray | None = None,
+    index: VektorovyIndex | None = None,
+    postup: SledovaniPostupu = BEZ_SLEDOVANI,
 ) -> VysledekDeduplikace:
     konfigurace = konfigurace or NastaveniDeduplikace()
     spravce = spravce or spravce_embeddingu()
@@ -264,31 +273,47 @@ def najdi_duplicity(
     if pocet == 0:
         return VysledekDeduplikace([], [], 0, 0.0, konfigurace)
 
-    texty_embedding = [
-        normalizuj_pro_embedding(z.text_pro_porovnani()) for z in zaznamy
-    ]
-    texty_lexikalni = [normalizuj_pro_lexikalni(z.popis) for z in zaznamy]
-    atributy = [vytez_atributy(z.popis) for z in zaznamy]
-
-    druhy: list[str | None] | None = None
-    if konfigurace.uplatnit_druh_komponenty:
-        urceny = [urci_typ(z.popis) for z in zaznamy]
-        druhy = [t.identifikator if t else None for t in urceny]
+    postup.faze(FAZE_PRIPRAVA, pocet)
+    texty_lexikalni: list[str] = []
+    atributy: list[Atributy] = []
+    urcene_druhy: list[str | None] = []
+    for poradi_zaznamu, zaznam in enumerate(zaznamy):
+        texty_lexikalni.append(normalizuj_pro_lexikalni(zaznam.popis))
+        atributy.append(vytez_atributy(zaznam.popis))
+        if konfigurace.uplatnit_druh_komponenty:
+            typ = urci_typ(zaznam.popis)
+            urcene_druhy.append(typ.identifikator if typ else None)
+        if poradi_zaznamu % KROK_HLASENI == 0:
+            postup.posun(poradi_zaznamu)
+    postup.posun(pocet)
+    druhy: list[str | None] | None = (
+        urcene_druhy if konfigurace.uplatnit_druh_komponenty else None
+    )
 
     if vektory is None:
+        texty_embedding = [
+            normalizuj_pro_embedding(z.text_pro_porovnani()) for z in zaznamy
+        ]
         vektory = spravce.zakoduj(texty_embedding, zobrazit_prubeh=False)
         spravce.uloz_cache()
 
-    index = VektorovyIndex(dimenze=vektory.shape[1], konfigurace=globalni)
-    index.postav(vektory)
+    if index is None or index.velikost != len(vektory):
+        index = VektorovyIndex(dimenze=vektory.shape[1], konfigurace=globalni)
+        index.postav(vektory)
+
+    postup.faze(FAZE_HLEDANI, pocet)
     podobnosti, sousede = index.hledej(
         vektory,
         pocet_sousedu=konfigurace.pocet_sousedu,
         vynechat_sebe=True,
+        postup=lambda hotovo, celkem: postup.posun(hotovo, celkem),
     )
 
+    postup.faze(FAZE_DVOJICE, pocet)
     posouzene: dict[tuple[int, int], Dvojice] = {}
     for index_a in range(pocet):
+        if index_a % KROK_HLASENI == 0:
+            postup.posun(index_a)
         for poradi in range(sousede.shape[1]):
             index_b = int(sousede[index_a, poradi])
             if index_b < 0:
@@ -304,6 +329,7 @@ def najdi_duplicity(
                 atributy, zaznamy, konfigurace, druhy,
             )
 
+    postup.posun(pocet)
     dvojice = list(posouzene.values())
     prijate = [d for d in dvojice if d.prijata]
 
@@ -321,14 +347,22 @@ def najdi_duplicity(
             if (a, b) in podobnost_dvojic
         ]
 
+    dvojice_podle_komponenty: dict[int, dict[tuple[int, int], Dvojice]] = {}
+    for klic, d in podobnost_dvojic.items():
+        dvojice_podle_komponenty.setdefault(struktura.najdi(d.index_a), {})[klic] = d
+
+    komponenty = [k for k in struktura.skupiny().items() if len(k[1]) >= 2]
+    postup.faze(FAZE_SHLUKOVANI, len(komponenty))
     klastry: list[Klastr] = []
-    for komponenta in struktura.skupiny().values():
-        if len(komponenta) < 2:
-            continue
+    for poradi_komponenty, (koren, komponenta) in enumerate(komponenty):
+        if poradi_komponenty % KROK_HLASENI == 0:
+            postup.posun(poradi_komponenty)
         komponenta = sorted(komponenta)
 
         if konfigurace.prisne_shlukovani:
-            skupiny_k_zapisu = _rozloz_na_uplne_skupiny(komponenta, podobnost_dvojic)
+            skupiny_k_zapisu = _rozloz_na_uplne_skupiny(
+                komponenta, dvojice_podle_komponenty.get(koren, {})
+            )
         else:
             skupiny_k_zapisu = [komponenta]
 

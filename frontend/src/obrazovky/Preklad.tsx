@@ -6,7 +6,7 @@ import {
   type UsekDokumentu,
   type VysledekPrekladu,
 } from "../api";
-import { useJazyky, useNacti } from "../hooky";
+import { useJazyky, useNacti, useOdhadZbyvajiciDoby } from "../hooky";
 import {
   Ikona,
   Panel,
@@ -14,6 +14,7 @@ import {
   VolbaJazyka,
   ZahlaviObrazovky,
   formatujProcenta,
+  textZbyvajiciDoby,
   useOznameni,
 } from "../komponenty";
 
@@ -530,6 +531,7 @@ function PrekladDokumentu({
   const hotovo = stav.hotovo;
   const prelozeno = stav.useky.length;
   const podil = stav.celkem ? prelozeno / stav.celkem : 0;
+  const odhad = useOdhadZbyvajiciDoby(prelozeno, stav.celkem, pracuje && !hotovo);
   const zGlosare = stav.useky.filter((u) => u.zpusob === "glosář").length;
   const problemove = stav.useky.filter(maProblem);
   const zobrazene = vsechnyUseky ? stav.useky : problemove;
@@ -545,7 +547,7 @@ function PrekladDokumentu({
           hotovo
             ? `${hotovo.pocet_useku} úseků · ${hotovo.doba_s.toFixed(1)} s · model ${hotovo.model}`
             : pracuje
-              ? `Přeloženo ${prelozeno} z ${stav.celkem || "…"} úseků`
+              ? `Přeloženo ${prelozeno} z ${stav.celkem || "…"} úseků · ${textZbyvajiciDoby(odhad.zbyva_s)}`
               : `Přerušeno po ${prelozeno} z ${stav.celkem} úseků`
         }
         akce={

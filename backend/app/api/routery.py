@@ -271,6 +271,11 @@ def spust_deduplikaci(pozadavek: PozadavekDeduplikace) -> Potvrzeni:
     )
 
 
+@router_dedup.get("/prubeh")
+def prubeh_deduplikace() -> dict[str, Any]:
+    return sluzba_deduplikace().postup.snimek()
+
+
 @router_dedup.delete("/behy", response_model=Potvrzeni)
 def smaz_behy() -> Potvrzeni:
     pocet = sluzba_deduplikace().smaz_vsechny_behy()

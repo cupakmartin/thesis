@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChybaApi, api, type Jazyk } from "./api";
+import { ChybaApi, api, type Jazyk, type Postup } from "./api";
 
 export interface StavNacitani<T> {
   data: T | null;
@@ -60,6 +60,68 @@ export function useOdlozeno<T>(hodnota: T, prodleva = 300): T {
   }, [hodnota, prodleva]);
 
   return odlozena;
+}
+
+const INTERVAL_DOTAZU_NA_POSTUP_MS = 1000;
+const MIN_PODIL_PRO_ODHAD = 0.02;
+const MIN_DOBA_PRO_ODHAD_MS = 1500;
+
+export function useSledovaniPostupu(
+  ziskej: () => Promise<Postup>,
+  aktivni: boolean,
+): Postup | null {
+  const [postup, nastavPostup] = useState<Postup | null>(null);
+  const funkce = useRef(ziskej);
+  funkce.current = ziskej;
+
+  useEffect(() => {
+    if (!aktivni) return;
+    let zruseno = false;
+    const nacti = () => {
+      funkce.current()
+        .then((snimek) => {
+          if (!zruseno) nastavPostup(snimek);
+        })
+        .catch(() => undefined);
+    };
+    nacti();
+    const casovac = window.setInterval(nacti, INTERVAL_DOTAZU_NA_POSTUP_MS);
+    return () => {
+      zruseno = true;
+      window.clearInterval(casovac);
+    };
+  }, [aktivni]);
+
+  return postup;
+}
+
+export function useOdhadZbyvajiciDoby(
+  hotovo: number,
+  celkem: number,
+  aktivni: boolean,
+): { uplynulo_s: number; zbyva_s: number | null } {
+  const zacatek = useRef<number | null>(null);
+  const [ted, nastavTed] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!aktivni) {
+      zacatek.current = null;
+      return;
+    }
+    zacatek.current = Date.now();
+    nastavTed(Date.now());
+    const casovac = window.setInterval(() => nastavTed(Date.now()), 1000);
+    return () => window.clearInterval(casovac);
+  }, [aktivni]);
+
+  if (!aktivni || zacatek.current === null) return { uplynulo_s: 0, zbyva_s: null };
+  const uplynulo = Math.max(0, ted - zacatek.current);
+  const mereni =
+    celkem > 0 && hotovo > 0 && hotovo / celkem >= MIN_PODIL_PRO_ODHAD && uplynulo >= MIN_DOBA_PRO_ODHAD_MS;
+  return {
+    uplynulo_s: uplynulo / 1000,
+    zbyva_s: mereni ? ((uplynulo / hotovo) * (celkem - hotovo)) / 1000 : null,
+  };
 }
 
 export function useJazyky(): Jazyk[] {
